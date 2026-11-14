@@ -19,7 +19,13 @@ import { useStorage } from "../context/storage"
 import { useDialog } from "../ui/dialog"
 import { Session } from "../routes/session"
 import { Sidebar } from "../routes/session/sidebar"
-import { clampSessionPaneWidth, SESSION_SIDEBAR_WIDTH } from "../ui/layout"
+import {
+  clampCockpitRightRail,
+  clampSessionPaneWidth,
+  cockpitFits,
+  COCKPIT_RIGHT_RAIL_WIDTH,
+  SESSION_SIDEBAR_WIDTH,
+} from "../ui/layout"
 import { createPaneResize } from "../ui/pane-resize"
 import { PaneResizeHandle } from "../ui/pane-resize-handle"
 import { useToast } from "../ui/toast"
@@ -39,7 +45,11 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
   const dialog = useDialog()
   const availableWidth = () => Math.max(0, dimensions().width - props.verticalTabsWidth)
   const defaultPaneWidth = () => Math.max(1, Math.floor(panels.width() / 2))
-  const [layout, updateLayout] = useStorage().store<{ paneWidth?: number; terminalWidth?: number }>("layout", {
+  const [layout, updateLayout] = useStorage().store<{
+    paneWidth?: number
+    terminalWidth?: number
+    rightRail?: boolean
+  }>("layout", {
     initial: {},
   })
   const paneResize = createPaneResize({
@@ -104,10 +114,13 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
     }),
   )
   const wide = createMemo(() => dimensions().width - props.verticalTabsWidth > 120)
+  const cockpit = createMemo(() => cockpitFits(dimensions().width) && !data.session.get(props.sessionID)?.parentID)
+  const rightRail = createMemo(() => cockpit() && (layout.rightRail ?? true))
   const sidebarVisible = createMemo(() => {
     if (data.session.get(props.sessionID)?.parentID) return false
     if (sidebarOpen()) return true
-    return (config.data.session?.sidebar ?? "auto") === "auto" && wide()
+    if (!cockpit()) return (config.data.session?.sidebar ?? "auto") === "auto" && wide()
+    return rightRail()
   })
   const rightPane = createMemo(() => {
     if (activePanel()) return "panel"
@@ -115,7 +128,21 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
     if (selectedTerminal()) return "terminal"
     if (sidebarVisible()) return "sidebar"
   })
+  const dockedSidebar = () => rightPane() === "sidebar" && (wide() || cockpit())
+  const railWidth = () =>
+    cockpit() ? clampCockpitRightRail(COCKPIT_RIGHT_RAIL_WIDTH, availableWidth()) : SESSION_SIDEBAR_WIDTH
+  const toggleRightRail = () => {
+    const next = !rightRail()
+    void updateLayout((draft) => {
+      draft.rightRail = next
+    }).catch(toast.error)
+  }
   const toggleSidebar = () => {
+    // In the Cockpit the context rail replaces the old auto sidebar, so the sidebar key toggles it too.
+    if (cockpit() && !activePanel() && !selectedTerminal()) {
+      toggleRightRail()
+      return
+    }
     batch(() => {
       const visible = rightPane() === "sidebar"
       void config
@@ -190,6 +217,16 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
         palette: true,
         run: () => {
           toggleSidebar()
+          dialog.clear()
+        },
+      },
+      {
+        id: "session.rightrail.toggle",
+        title: rightRail() ? "Hide context rail" : "Show context rail",
+        group: "Session",
+        palette: true,
+        run: () => {
+          toggleRightRail()
           dialog.clear()
         },
       },
@@ -322,13 +359,11 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
           />
         </Show>
       </box>
-      <Show when={rightPane() === "terminal" || rightPane() === "panel" || (rightPane() === "sidebar" && wide())}>
+      <Show when={rightPane() === "terminal" || rightPane() === "panel" || dockedSidebar()}>
         <box
           ref={(value: BoxRenderable) => (rightNode = value)}
           flexShrink={0}
-          width={
-            fullscreen() ? availableWidth() : rightPane() === "sidebar" ? SESSION_SIDEBAR_WIDTH : paneResize.size()
-          }
+          width={fullscreen() ? availableWidth() : rightPane() === "sidebar" ? railWidth() : paneResize.size()}
           minWidth={0}
           minHeight={0}
         >
@@ -375,14 +410,14 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
               </Show>
             }
           >
-            <Sidebar sessionID={props.sessionID} />
+            <Sidebar sessionID={props.sessionID} width={railWidth()} />
           </Show>
         </box>
       </Show>
       <Show when={!fullscreen() && (rightPane() === "terminal" || rightPane() === "panel") && availableWidth() >= 3}>
         <PaneResizeHandle resize={paneResize} left={availableWidth() - paneResize.size() - 1} highlight="right" />
       </Show>
-      <Show when={rightPane() === "sidebar" && !wide()}>
+      <Show when={rightPane() === "sidebar" && !dockedSidebar()}>
         <box
           position="absolute"
           top={0}
@@ -392,7 +427,7 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
           alignItems="flex-end"
           backgroundColor={RGBA.fromInts(0, 0, 0, 70)}
         >
-          <Sidebar sessionID={props.sessionID} />
+          <Sidebar sessionID={props.sessionID} width={railWidth()} />
         </box>
       </Show>
     </box>

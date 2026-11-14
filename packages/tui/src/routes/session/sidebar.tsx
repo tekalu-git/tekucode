@@ -9,8 +9,9 @@ import "../../component/title-shimmer"
 
 import { getScrollAcceleration } from "../../util/scroll"
 import { SESSION_SIDEBAR_WIDTH } from "../../ui/layout"
+import { CockpitContextMeter } from "../../component/cockpit/context-meter"
 
-export function Sidebar(props: { sessionID: string }) {
+export function Sidebar(props: { sessionID: string; width?: number }) {
   const data = useData()
   const theme = useTheme()
   const config = useConfig().data
@@ -21,7 +22,7 @@ export function Sidebar(props: { sessionID: string }) {
     <Show when={session()}>
       <box
         backgroundColor={theme.background.raised.base}
-        width={SESSION_SIDEBAR_WIDTH}
+        width={props.width ?? SESSION_SIDEBAR_WIDTH}
         height="100%"
         paddingTop={1}
         paddingBottom={1}
@@ -73,6 +74,7 @@ export function Sidebar(props: { sessionID: string }) {
 
         <box flexShrink={0} gap={1} paddingTop={1}>
           <Slot path="sidebar.footer" input={{ sessionID: props.sessionID }} />
+          <CockpitContextMeter sessionID={props.sessionID} />
         </box>
       </box>
     </Show>

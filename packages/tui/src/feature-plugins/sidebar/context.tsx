@@ -21,7 +21,7 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
     <Show when={state() || cost() > 0}>
       <box>
         <text fg={theme.text.base}>
-          <b>Context</b>
+          <b>CONTEXT</b>
         </text>
         <Show when={state()}>
           {(value) => (
