@@ -78,7 +78,7 @@ import { DialogAgent } from "./component/dialog-agent"
 import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogOpen, DialogOpenKey, moveOpenSession } from "./component/dialog-open"
 import { SessionTabs } from "./component/session-tabs"
-import { clampSessionTabsWidth, sessionTabsFitVertically, SESSION_SIDEBAR_WIDTH } from "./ui/layout"
+import { clampSessionTabsWidth, COCKPIT_LEFT_RAIL_WIDTH, sessionTabsFitVertically } from "./ui/layout"
 import { createPaneResize } from "./ui/pane-resize"
 import { PaneResizeHandle } from "./ui/pane-resize-handle"
 import { clickedLink } from "./ui/link"
@@ -102,6 +102,8 @@ import { localPluginDirectories } from "./plugin/discovery"
 import { PluginRoute, Slot } from "./plugin/render"
 import { CommandPaletteDialog } from "./component/command-palette"
 import { COMMAND_PALETTE_COMMAND, Keymap, type KeymapCommand } from "./context/keymap"
+import { CockpitStatusBar } from "./component/cockpit/status-bar"
+import { CockpitTopBar } from "./component/cockpit/top-bar"
 
 import { DialogVariant } from "./component/dialog-variant"
 import { destroyRenderer, setTerminalTitle } from "./util/renderer"
@@ -537,11 +539,11 @@ function App() {
       .catch(toast.error)
   })
   const [layout, updateLayout] = useStorage().store<{ verticalTabsWidth?: number }>("layout", {
-    initial: { verticalTabsWidth: SESSION_SIDEBAR_WIDTH },
+    initial: { verticalTabsWidth: COCKPIT_LEFT_RAIL_WIDTH },
   })
   const tabsResize = createPaneResize({
-    value: () => layout.verticalTabsWidth ?? SESSION_SIDEBAR_WIDTH,
-    defaultValue: () => SESSION_SIDEBAR_WIDTH,
+    value: () => layout.verticalTabsWidth ?? COCKPIT_LEFT_RAIL_WIDTH,
+    defaultValue: () => COCKPIT_LEFT_RAIL_WIDTH,
     clamp: (width) => clampSessionTabsWidth(width, dimensions().width),
     fromMouse: (event) => event.x + 1,
     contains: (event, width) => event.x >= width - 1 && event.x <= width,
@@ -1421,6 +1423,7 @@ function App() {
         if (copyOnSelectEnabled()) Selection.copyOnSelectRelease(event, renderer, toast, clipboard)
       }}
     >
+      <CockpitTopBar />
       <box
         flexGrow={1}
         minHeight={0}
@@ -1469,6 +1472,7 @@ function App() {
           <PaneResizeHandle resize={tabsResize} left={tabsResize.size() - 1} />
         </Show>
       </box>
+      <CockpitStatusBar />
       <Show when={devtools() && !(route.data.type === "plugin" && route.data.id === "opencode.stats")}>
         <DevToolsBar />
       </Show>

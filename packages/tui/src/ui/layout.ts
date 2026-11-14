@@ -2,8 +2,15 @@ export const SESSION_SIDEBAR_WIDTH = 42
 export const SESSION_TABS_COMPACT_WIDTH = 5
 export const SESSION_TABS_COMPACT_BREAKPOINT = 12
 export const SESSION_SIDEBAR_MAX_WIDTH = 72
-const SESSION_CONTENT_MIN_WIDTH = 44
 const SESSION_CONTENT_PREFERRED_WIDTH = 64
+export const SESSION_CONTENT_MIN_WIDTH = 44
+
+export const COCKPIT_MIN_WIDTH = 110
+export const COCKPIT_LEFT_RAIL_WIDTH = 28
+export const COCKPIT_RIGHT_RAIL_WIDTH = 32
+export const COCKPIT_RIGHT_RAIL_MIN_WIDTH = 24
+export const COCKPIT_RIGHT_RAIL_MAX_WIDTH = 40
+
 // Like vertical tabs, a docked panel fits when the session keeps its preferred width beside a minimum-width pane.
 // Narrower, panels take over the screen.
 export const SESSION_PANEL_SPLIT_MIN_WIDTH = SESSION_CONTENT_PREFERRED_WIDTH + SESSION_CONTENT_MIN_WIDTH
@@ -23,4 +30,15 @@ export function clampSessionPaneWidth(width: number, total: number) {
   const half = Math.max(1, Math.floor(total / 2))
   // Preserve the equal split when there is not enough room for both pane minima.
   return Math.max(Math.min(24, half), Math.min(width, Math.max(half, total - SESSION_CONTENT_MIN_WIDTH)))
+}
+
+export function cockpitFits(total: number) {
+  return total >= COCKPIT_MIN_WIDTH
+}
+
+export function clampCockpitRightRail(width: number, total: number) {
+  return Math.max(
+    COCKPIT_RIGHT_RAIL_MIN_WIDTH,
+    Math.min(width, COCKPIT_RIGHT_RAIL_MAX_WIDTH, total - SESSION_CONTENT_MIN_WIDTH),
+  )
 }
