@@ -12,6 +12,8 @@ import opencode2 from "./assets/v2/opencode2.json" with { type: "json" }
 
 export { DEFAULT_THEMES, type Theme, type ThemeV1Json } from "./v1"
 
+export const DEFAULT_THEME = "grass"
+
 export type ThemeDocumentSource = Record<string, unknown>
 
 let customThemes: Record<string, ThemeDocumentSource> = {}

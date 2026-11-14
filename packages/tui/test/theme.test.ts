@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test"
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
-import type { TerminalColors } from "@opentui/core"
-import { allThemes, hasTheme, getOpenCodeTheme, parseTheme, resolveTheme } from "../src/theme"
+import { RGBA, type TerminalColors } from "@opentui/core"
+import { allThemes, DEFAULT_THEME, hasTheme, getOpenCodeTheme, parseTheme, resolveTheme } from "../src/theme"
 import { discoverThemes } from "../src/theme/discovery"
 import { configDirectories } from "../src/util/config-directories"
 import { terminalMode } from "../src/theme/system"
 import opencodeSource from "../src/theme/assets/opencode.json" with { type: "json" }
+import grass from "../src/theme/assets/grass.json" with { type: "json" }
+import matrix from "../src/theme/assets/matrix.json" with { type: "json" }
 import type { ThemeV1Json } from "@opencode/theme/tui/v1"
 import { tmpdir } from "./fixture/fixture"
 
@@ -147,4 +149,21 @@ test("theme directories include global config before project directories", async
     global: { source: "global" },
     project: { source: "project" },
   })
+})
+
+test("registers the grass theme and makes it the fork default", () => {
+  expect(allThemes().grass).toBe(grass)
+  expect(DEFAULT_THEME).toBe("grass")
+})
+
+test("grass defines every theme token and uses green as the only accent", () => {
+  const source = grass as ThemeV1Json
+  for (const key of Object.keys(matrix.theme)) {
+    expect(source.theme[key as keyof typeof source.theme]).toBeDefined()
+  }
+  const theme = resolveTheme(source, "dark")
+  expect(theme.primary.equals(RGBA.fromHex("#5fd068"))).toBe(true)
+  expect(theme.accent.equals(RGBA.fromHex("#5fd068"))).toBe(true)
+  expect(theme.background.equals(RGBA.fromHex("#08090a"))).toBe(true)
+  expect(theme.warning.equals(RGBA.fromHex("#c9a86b"))).toBe(true)
 })
