@@ -46,6 +46,7 @@ import { projectName } from "../util/project"
 import { stringWidth } from "../util/string-width"
 import { marqueeCycleWidth, marqueeOverflows, marqueeTextParts } from "../util/marquee"
 import { useDialog } from "../ui/dialog"
+import { CockpitAgents } from "./cockpit/agents"
 import { useToast } from "../ui/toast"
 import { DialogSessionRename } from "./dialog-session-rename"
 import { Keymap } from "../context/keymap"
@@ -1224,6 +1225,9 @@ function VerticalSessionTabs(props: {
           </Show>
         </box>
       </scrollbox>
+      <Show when={!props.controller && !compact() && width() >= 20}>
+        <CockpitAgents sessionID={activeID()} width={width()} />
+      </Show>
       <Show when={compact() && !dragging() && !contextMenu() && hovered()}>
         {(sessionID) => (
           <box
