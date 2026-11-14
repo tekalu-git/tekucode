@@ -160,6 +160,16 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
             ),
           },
         }),
+        Spec.make("reset-quota", {
+          description: "Reset quota by rotating fingerprint, IP, and wiping local database",
+          params: {
+            force: Flag.Boolean("force").pipe(
+              Flag.withAlias("f"),
+              Flag.withDescription("Skip confirmation prompt"),
+              Flag.withDefault(false),
+            ),
+          },
+        }),
       ],
     }),
     Spec.make("auth", {

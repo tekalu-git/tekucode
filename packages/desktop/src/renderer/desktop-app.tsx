@@ -16,6 +16,8 @@ import {
   type Platform,
 } from "@opencode/app/desktop"
 import { useTheme } from "@opencode/ui/theme/context"
+import { systemAccentTokens } from "@opencode/ui/theme/accent"
+import type { HexColor } from "@opencode/ui/theme/types"
 import type { BaseRouterProps } from "@solidjs/router"
 import { createEffect, createMemo, createSignal, lazy, onCleanup, Show, Suspense, untrack } from "solid-js"
 import type { ElectronAPI } from "./api-types"
@@ -275,6 +277,24 @@ function DesktopEffects(props: { api: ElectronAPI }) {
   const command = useCommand()
   onCleanup(bindDesktopMenu((id) => command.trigger(id)))
   const theme = useTheme()
+  const [systemAccent, setSystemAccent] = createSignal<string | null>(null)
+  let accentRevision = 0
+  let appliedAccentKeys: string[] = []
+
+  onCleanup(
+    props.api.onSystemAccentChanged((color) => {
+      accentRevision++
+      setSystemAccent(color)
+    }),
+  )
+
+  const initialAccentRevision = accentRevision
+  void props.api.getSystemAccentColor().then(
+    (color) => {
+      if (accentRevision === initialAccentRevision) setSystemAccent(color)
+    },
+    () => undefined,
+  )
 
   createEffect(() => {
     theme.themeId()
@@ -282,6 +302,27 @@ function DesktopEffects(props: { api: ElectronAPI }) {
     const background = getComputedStyle(document.documentElement).getPropertyValue("--background-base").trim()
 
     if (background) void props.api.setBackgroundColor(background)
+  })
+
+  createEffect(() => {
+    const root = document.documentElement
+    const accent = systemAccent()
+    const themeId = theme.themeId()
+    const isDark = theme.mode() === "dark"
+
+    appliedAccentKeys.forEach((key) => root.style.removeProperty(`--${key}`))
+    appliedAccentKeys = []
+
+    // Respect custom theme palettes; KDE's accent replaces the default theme's blue interactive hue.
+    if (themeId !== "oc-2" || !accent || !/^#[\da-f]{6}$/i.test(accent)) return
+
+    const tokens = systemAccentTokens(accent as HexColor, isDark)
+    Object.entries(tokens).forEach(([key, value]) => root.style.setProperty(`--${key}`, value))
+    appliedAccentKeys = Object.keys(tokens)
+  })
+
+  onCleanup(() => {
+    appliedAccentKeys.forEach((key) => document.documentElement.style.removeProperty(`--${key}`))
   })
 
   return null

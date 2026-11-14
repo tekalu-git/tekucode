@@ -53,7 +53,7 @@ test.each(channels)("channel identity for $channel", ({ channel, appId, feed }) 
   // Every published channel updates from its own feed on the update service.
   expect(config.publish).toEqual({
     provider: "generic",
-    url: `https://opencode.ai/update/api/${feed}/desktop/opencode/`,
+    url: `https://tekucode.dev/update/api/${feed}/desktop/opencode/`,
     channel: "latest",
   })
   expect(config.extraMetadata?.desktopName).toBe(`${appId}.desktop`)
@@ -82,7 +82,7 @@ test.each(channels)("channel identity for $channel", ({ channel, appId, feed }) 
 
 test("legacy Linux launcher stays hidden", async () => {
   const desktop = await Bun.file(path.join(import.meta.dirname, "resources/linux/opencode-desktop.desktop")).text()
-  expect(desktop).toContain("Exec=/opt/OpenCode/ai.opencode %U")
+  expect(desktop).toContain("Exec=/opt/TekuCode/ai.opencode %U")
   expect(desktop).toContain("Icon=ai.opencode")
   expect(desktop).toContain("StartupWMClass=ai.opencode.desktop")
   expect(desktop).toContain("NoDisplay=true")
@@ -195,6 +195,20 @@ test("trims external dependencies without excluding runtime files", () => {
       expect(included).toBe(pkg === active)
     }
   }
+})
+
+test("the renderer's source maps stay out of the package", () => {
+  const fileStats = statSync(import.meta.filename)
+  const filter = trimFilter(import.meta.dirname, load("dev"))
+  const included = (file: string) => filter(path.join(import.meta.dirname, "out", file), fileStats)
+
+  // One map per language and icon chunk: ~70 MB and ~2,500 asar entries nothing at runtime reads.
+  expect(included("renderer/assets/main-BDLr9VoO.js.map")).toBe(false)
+  expect(included("renderer/assets/folder-admin-CLH7_Ka3.js.map")).toBe(false)
+  expect(included("renderer/assets/main-BDLr9VoO.js")).toBe(true)
+  expect(included("renderer/assets/folder-admin-CLH7_Ka3.js")).toBe(true)
+  expect(included("main/index.js")).toBe(true)
+  expect(included("preload/index.cjs")).toBe(true)
 })
 
 test("the trimmed Zip.js package can still export compressed logs", async () => {

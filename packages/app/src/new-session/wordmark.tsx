@@ -16,31 +16,32 @@ import {
 } from "./wordmark-machine"
 import "./wordmark.css"
 
-// Each letter in the 234×42 logo viewBox, with its counter shadow, stem, and bottom-centre pivot.
+// TekuCode wordmark in the 234×42 viewBox. Each glyph keeps the original 30-unit cell
+// so the per-letter animation and the lodger in the final "e" counter continue to work.
 const LETTERS = [
   {
     cx: 12,
-    weak: "M18 30H6V18H18V30Z",
+    weak: "M9 12H15V30H9V12Z",
     fill: "var(--icon-base)",
-    stem: "M18 12H6V30H18V12ZM24 36H0V6H24V36Z",
+    stem: "M0 6H24V12H15V36H9V12H0V6Z",
   },
   {
     cx: 42,
-    weak: "M48 30H36V18H48V30Z",
+    weak: "M54 24V30H36V24H54Z",
     fill: "var(--icon-base)",
-    stem: "M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z",
+    stem: "M36 12V18H48V12H36ZM54 24H36V30H54V36H30V6H54V24Z",
   },
   {
     cx: 72,
-    weak: "M84 24V30H66V24H84Z",
+    weak: "M66 24L72 18L78 30H72L66 24Z",
     fill: "var(--icon-base)",
-    stem: "M84 24H66V30H84V36H60V6H84V24ZM66 18H78V12H66V18Z",
+    stem: "M60 6H66V18L78 6H84L72 20L84 36H78L69 24L66 27V36H60V6Z",
   },
   {
     cx: 102,
-    weak: "M108 36H96V18H108V36Z",
+    weak: "M96 30H108V36H96V30Z",
     fill: "var(--icon-base)",
-    stem: "M108 12H96V36H90V6H108V12ZM114 36H108V12H114V36Z",
+    stem: "M90 6H96V30H108V6H114V36H90V6Z",
   },
   {
     cx: 132,

@@ -40,14 +40,14 @@ export const Logo = (props: { class?: string }) => {
       classList={{ [props.class ?? ""]: !!props.class }}
     >
       <g>
-        <path d="M18 30H6V18H18V30Z" fill="var(--icon-weak-base)" />
-        <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z" fill="var(--icon-base)" />
-        <path d="M48 30H36V18H48V30Z" fill="var(--icon-weak-base)" />
-        <path d="M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z" fill="var(--icon-base)" />
-        <path d="M84 24V30H66V24H84Z" fill="var(--icon-weak-base)" />
-        <path d="M84 24H66V30H84V36H60V6H84V24ZM66 18H78V12H66V18Z" fill="var(--icon-base)" />
-        <path d="M108 36H96V18H108V36Z" fill="var(--icon-weak-base)" />
-        <path d="M108 12H96V36H90V6H108V12ZM114 36H108V12H114V36Z" fill="var(--icon-base)" />
+        <path d="M0 6H24V12H0Z" fill="var(--icon-weak-base)" />
+        <path d="M0 6H24V12H15V36H9V12H0V6Z" fill="var(--icon-base)" />
+        <path d="M54 24V30H36V24H54Z" fill="var(--icon-weak-base)" />
+        <path d="M36 12V18H48V12H36ZM54 24H36V30H54V36H30V6H54V24Z" fill="var(--icon-base)" />
+        <path d="M66 24L72 18L78 30H72L66 24Z" fill="var(--icon-weak-base)" />
+        <path d="M60 6H66V18L78 6H84L72 20L84 36H78L69 24L66 27V36H60V6Z" fill="var(--icon-base)" />
+        <path d="M96 30H108V36H96Z" fill="var(--icon-weak-base)" />
+        <path d="M90 6H96V30H108V6H114V36H90V6Z" fill="var(--icon-base)" />
         <path d="M144 30H126V18H144V30Z" fill="var(--icon-weak-base)" />
         <path d="M144 12H126V30H144V36H120V6H144V12Z" fill="var(--icon-strong-base)" />
         <path d="M168 30H156V18H168V30Z" fill="var(--icon-weak-base)" />

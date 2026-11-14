@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# opencode - Run OpenCode from source with fingerprint support
+# This wrapper runs the CLI from source so it picks up all changes
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_DIR="$SCRIPT_DIR/packages/cli"
+
+# Use bun from ~/.bun/bin if not in PATH
+if command -v bun >/dev/null 2>&1; then
+  BUN_CMD="bun"
+elif [[ -f "$HOME/.bun/bin/bun" ]]; then
+  BUN_CMD="$HOME/.bun/bin/bun"
+else
+  echo "Error: Could not find bun. Please install it or add to PATH." >&2
+  exit 1
+fi
+
+# Run from source
+exec "$BUN_CMD" run --cwd "$CLI_DIR" src/index.ts "$@"

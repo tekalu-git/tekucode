@@ -12,6 +12,9 @@ import {
   HttpClientResponse,
   HttpMethod,
 } from "effect/http"
+import { SocksProxyAgent } from "socks-proxy-agent"
+import { ProxyAgent, setGlobalDispatcher } from "undici"
+import "./tor-http-client"
 import { App } from "../../app.js"
 import { Bus } from "../../bus.js"
 import { Config } from "../../config.js"
@@ -191,6 +194,15 @@ export const OpencodePlugin = define<
   id: "opencode.provider.opencode",
   effect: Effect.fn(function* (ctx) {
     const disableFree = ["1", "true"].includes(process.env.OPENCODE_DISABLE_FREE_MODELS?.toLowerCase() ?? "")
+    
+    // Set up Tor SOCKS5 proxy if enabled
+    if (process.env.TOR_SOCKS5_PROXY !== "false") {
+      const torProxy = process.env.TOR_SOCKS5_PROXY ?? "socks5://127.0.0.1:9050"
+      const proxyAgent = new ProxyAgent(torProxy)
+      setGlobalDispatcher(proxyAgent)
+      console.log(`[OpenCode Provider] Configured SOCKS5 proxy: ${torProxy}`)
+    }
+    
     const client = yield* HttpClient.HttpClient
     // Every request here goes to the Console, which reads the User-Agent to tell which OpenCode a member runs
     // and whether it evaluates the policies it is being sent.

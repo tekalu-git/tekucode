@@ -12,12 +12,15 @@ import {
   updateTitlebar,
 } from "../windows"
 import { storedZoomLevel } from "../windows/defaults"
+import { getSystemAccentColor, watchSystemAccentColor } from "../windows/system-accent"
 import { focusWindow, showWindow } from "../windows/focus"
 import { sender } from "./context"
 
 export const windowHandlers = WindowRpcs.toLayer(
   Effect.gen(function* () {
     const handoff = yield* IpcPortHandoff
+    const stopAccentWatch = watchSystemAccentColor()
+    yield* Effect.addFinalizer(() => Effect.sync(stopAccentWatch))
 
     return WindowRpcs.of({
       WindowRequestMicrophone: () =>
@@ -56,6 +59,7 @@ export const windowHandlers = WindowRpcs.toLayer(
       WindowSetZoomLevel: ({ level }) => Effect.sync(() => setZoomLevel(level)),
       WindowGetPinchZoomEnabled: () => Effect.sync(getPinchZoomEnabled),
       WindowSetPinchZoomEnabled: ({ enabled }) => Effect.sync(() => setPinchZoomEnabled(enabled)),
+      WindowGetSystemAccentColor: () => Effect.promise(getSystemAccentColor),
       WindowSetTitlebar: ({ theme }, context) =>
         Effect.sync(() => {
           const win = BrowserWindow.fromWebContents(sender(handoff, context))

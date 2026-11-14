@@ -80,6 +80,10 @@ const getBase = (appId: string): Configuration => {
       : { desktopName },
     files: [
       "out/**/*",
+      // The renderer build keeps source maps for a maintainer's own build, but nothing in a packaged
+      // app reads them: the renderer bundler emits one per language and icon chunk, and shipping them
+      // costs ~70 MB and ~2,500 extra asar entries the main process parses before it runs any code.
+      "!out/**/*.map",
       "resources/**/*",
       "!resources/opencode-cli*",
       // Keep only the target platform's node-pty prebuild when cross-packaging with --cpu=*.
@@ -173,7 +177,7 @@ const getBase = (appId: string): Configuration => {
       target: ["dmg", "zip"],
     },
     protocols: {
-      name: "OpenCode",
+      name: "TekuCode",
       schemes: ["opencode"],
     },
     win: {
@@ -218,10 +222,10 @@ export function getConfig() {
       return {
         ...base,
         appId,
-        productName: "OpenCode Dev",
+        productName: "TekuCode Dev",
         publish: {
           provider: "generic",
-          url: "https://opencode.ai/update/api/dev/desktop/opencode/",
+          url: "https://tekucode.dev/update/api/dev/desktop/opencode/",
           channel: "latest",
         },
         deb: { fpm: [...previewCompressionFpm("deb"), metainfoFpm(appId)] },
@@ -236,11 +240,11 @@ export function getConfig() {
       return {
         ...base,
         appId,
-        productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
+        productName: "TekuCode Beta",
+        protocols: { name: "TekuCode Beta", schemes: ["opencode"] },
         publish: {
           provider: "generic",
-          url: "https://opencode.ai/update/api/beta/desktop/opencode/",
+          url: "https://tekucode.dev/update/api/beta/desktop/opencode/",
           channel: "latest",
         },
         deb: { fpm: [...previewCompressionFpm("deb"), metainfoFpm(appId)] },
@@ -255,8 +259,8 @@ export function getConfig() {
       return {
         ...base,
         appId,
-        productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
+        productName: "TekuCode",
+        protocols: { name: "TekuCode", schemes: ["opencode"] },
         // An Icon Composer package compiles to Assets.car, which macOS 26 and later draw the app icon from
         // (Dock, Finder, system dialogs and the system icon styles). Older macOS keeps using the ICNS.
         mac: { ...base.mac, icon: "resources/icons/icon.icon" },
@@ -264,7 +268,7 @@ export function getConfig() {
         dmg: { icon: "resources/icons/icon.icns" },
         publish: {
           provider: "generic",
-          url: "https://opencode.ai/update/api/latest/desktop/opencode/",
+          url: "https://tekucode.dev/update/api/latest/desktop/opencode/",
           channel: "latest",
         },
         deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },

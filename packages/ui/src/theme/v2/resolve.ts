@@ -27,7 +27,7 @@ function clamp(v: number, min: number, max: number) {
 }
 
 /** v2 ramps: 100 = lightest, 1200 = darkest — wider spread than v1 `generateScale`. */
-function generateV2HueScale(seed: HexColor, isDark: boolean): HexColor[] {
+export function generateV2HueScale(seed: HexColor, isDark: boolean): HexColor[] {
   const base = hexToOklch(seed)
   const chromaBoost = isDark ? 1 : 1.05
 

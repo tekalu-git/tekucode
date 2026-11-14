@@ -12,6 +12,11 @@ export class MenuCommandTriggered extends Schema.TaggedClass<MenuCommandTriggere
   id: Schema.String,
 }) {}
 
+export class WindowSystemAccentChanged extends Schema.TaggedClass<WindowSystemAccentChanged>()(
+  "WindowSystemAccentChanged",
+  { color: Schema.NullOr(Schema.String) },
+) {}
+
 export class WindowFullscreenChanged extends Schema.TaggedClass<WindowFullscreenChanged>()("WindowFullscreenChanged", {
   fullscreen: Schema.Boolean,
 }) {}
@@ -81,6 +86,7 @@ export const DesktopEvent = Schema.Union([
   SidecarChanged,
   MenuCommandTriggered,
   WindowFullscreenChanged,
+  WindowSystemAccentChanged,
   WindowFocusChanged,
   WindowPinchZoomChanged,
   WindowZoomChanged,

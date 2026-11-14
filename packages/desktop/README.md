@@ -1,6 +1,6 @@
-# OpenCode Desktop
+# TekuCode Desktop
 
-The OpenCode Desktop app, built with Electron.
+The TekuCode Desktop app, built with Electron.
 
 ## Development
 
@@ -36,9 +36,9 @@ default. `bun dev --download-server <version>` instead downloads that CLI versio
 
 ## Beta channel
 
-Every push to the `beta` branch publishes OpenCode Beta (`ai.opencode.desktop.beta`) as version `0.0.0-beta-<run>` to
+Every push to the `beta` branch publishes TekuCode Beta (`ai.opencode.desktop.beta`) as version `0.0.0-beta-<run>` to
 the `beta` update channel. Beta publishes only the desktop app; the CLI and SDK packages ship
-from `dev`. Install it from `https://opencode.ai/update/api/beta/desktop/opencode/<asset>`, for example
+from `dev`. Install it from `https://tekucode.dev/update/api/beta/desktop/opencode/<asset>`, for example
 `opencode-desktop-mac-arm64.dmg` or `opencode-desktop-win-x64.exe`. Installed builds update in place on every platform.
 
 ## Startup benchmark
@@ -59,11 +59,11 @@ and `SENTRY_*` environment removed), so it never touches the developer's app, pr
 ```bash
 # A returning user's launches of two packaged builds (pack each with OPENCODE_CHANNEL=beta or prod), or two installed
 # channels.
-strobe bench perf/startup.bench.ts --target desktop --base exe:<old>/OpenCode.exe --head exe:<new>/OpenCode.exe
-strobe bench perf/startup.bench.ts --target desktop --base app:opencode --head app:opencode-beta
+strobe bench perf/startup.bench.ts --target desktop --base exe:<old>/TekuCode.exe --head exe:<new>/TekuCode.exe
+strobe bench perf/startup.bench.ts --target desktop --base app:tekucode --head app:tekucode-beta
 
 # The first launch after an install.
-strobe bench perf/startup.bench.ts --target install --base app:opencode --head app:opencode-beta
+strobe bench perf/startup.bench.ts --target install --base app:tekucode --head app:tekucode-beta
 
 # The dev loop's cold start, dev against this checkout.
 strobe bench perf/startup.bench.ts --target dev --base origin/dev --head .

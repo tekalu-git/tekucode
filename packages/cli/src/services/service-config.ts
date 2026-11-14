@@ -8,6 +8,8 @@ import path from "path"
 import { selfCommand } from "../util/process"
 import { RemoteTunnel } from "./remote-tunnel"
 
+console.error("[DEBUG] service-config.ts loaded, OPENCODE_SOURCE_CLI:", process.env.OPENCODE_SOURCE_CLI)
+
 // The CLI's service configuration file, plus the Service.EnsureOptions binding that
 // points the client package's service operations at this CLI: which
 // registration file (by channel), which version, and how to spawn opencode.
@@ -143,11 +145,21 @@ export function processEnv(env: Info["env"]) {
 export const options = Effect.fnUntraced(function* (input: { readonly checkVersion?: boolean } = {}) {
   const { file, legacyRegistrationFiles } = yield* paths
   yield* Effect.forEach(legacyRegistrationFiles, (legacy) => migrateRegistration(legacy, file))
+  const readEnv = process.env.OPENCODE_SOURCE_CLI
+  console.error("[DEBUG] OPENCODE_SOURCE_CLI:", readEnv)
+  const command = readEnv
+    ? [readEnv, "serve", "--service"]
+    : [...selfCommand(), "serve", "--service"]
+  console.error("[DEBUG] service command:", command)
+  const savedEnv = (yield* read()).env ?? {}
+  const mergedEnv = readEnv
+    ? { ...savedEnv, OPENCODE_SOURCE_CLI: readEnv }
+    : savedEnv
   return {
     file,
     version: input.checkVersion ? OPENCODE_VERSION : undefined,
-    env: processEnv((yield* read()).env),
-    command: [...selfCommand(), "serve", "--service"],
+    env: processEnv(mergedEnv),
+    command,
   }
 })
 

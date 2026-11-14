@@ -2,10 +2,10 @@
   "build": { "command": "bun run build", "cwd": "packages/app", "output": "packages/app/dist" },
   "serve": { "command": "bun e2e/utils/serve.ts --host 127.0.0.1 --port {port}", "cwd": "packages/app" },
   "apps": {
-    "opencode": {
+    "tekucode": {
       "exe": {
-        "windows": "%LOCALAPPDATA%/Programs/ai.opencode.desktop/OpenCode.exe",
-        "macos": "/Applications/OpenCode.app/Contents/MacOS/OpenCode"
+        "windows": "%LOCALAPPDATA%/Programs/ai.opencode.desktop/TekuCode.exe",
+        "macos": "/Applications/TekuCode.app/Contents/MacOS/TekuCode"
       },
       "unset": ["OPENCODE_*", "OTEL_*", "SENTRY_*"],
       "env": {
@@ -23,11 +23,11 @@
       "guard": [{ "file": "~/.local/state/opencode/service.json", "pid": "pid", "url": "url" }],
       "protocols": ["opencode"]
     },
-    "opencode-beta": {
-      "extends": "opencode",
+    "tekucode-beta": {
+      "extends": "tekucode",
       "exe": {
-        "windows": "%LOCALAPPDATA%/Programs/ai.opencode.desktop.beta/OpenCode Beta.exe",
-        "macos": "/Applications/OpenCode Beta.app/Contents/MacOS/OpenCode Beta"
+        "windows": "%LOCALAPPDATA%/Programs/ai.opencode.desktop.beta/TekuCode Beta.exe",
+        "macos": "/Applications/TekuCode Beta.app/Contents/MacOS/TekuCode Beta"
       }
     }
   }

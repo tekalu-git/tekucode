@@ -1,13 +1,13 @@
 {
   "name": "@opencode/desktop",
   "private": true,
-  "version": "2.3.0",
+  "version": "0.0.0-dev-202611140742",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://opencode.ai",
+  "homepage": "https://tekucode.dev",
   "author": {
-    "name": "OpenCode",
-    "email": "hello@opencode.ai"
+    "name": "TekuCode",
+    "email": "hello@tekucode.dev"
   },
   "scripts": {
     "typecheck": "bun check --no-script -b",

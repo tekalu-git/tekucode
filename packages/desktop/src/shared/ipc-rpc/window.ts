@@ -36,6 +36,10 @@ export const WindowSetPinchZoomEnabled = Rpc.make("WindowSetPinchZoomEnabled", {
   payload: { enabled: Schema.Boolean },
 })
 
+export const WindowGetSystemAccentColor = Rpc.make("WindowGetSystemAccentColor", {
+  success: Schema.NullOr(Schema.String),
+})
+
 export const WindowSetTitlebar = Rpc.make("WindowSetTitlebar", {
   payload: {
     theme: Schema.Struct({
@@ -63,6 +67,7 @@ export const WindowRpcs = RpcGroup.make(
   WindowSetZoomLevel,
   WindowGetPinchZoomEnabled,
   WindowSetPinchZoomEnabled,
+  WindowGetSystemAccentColor,
   WindowSetTitlebar,
   WindowSetTrafficLightsPosition,
 )
