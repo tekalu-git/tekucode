@@ -43,21 +43,24 @@ jobs:
       OPENCODE_TARGET: windows-x64
       VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - uses: ./.github/actions/setup-bun
 
       # The bundled CLI must be the `latest` channel: the desktop shell polls
       # $XDG_STATE_HOME/opencode/service.json, and a branch-channel CLI registers as
       # service-<branch>.json, which the shell never finds (the app hangs on the splash screen).
-      # --single builds only this runner's platform, and --baseline matches the windows-x64
-      # CLI package that electron-builder verifies in afterPack.
+      # The target must be the baseline build: CLI_BINARIES maps windows-x64 to
+      # @opencode/cli-windows-x64-baseline, and the desktop build looks for that directory in
+      # packages/cli/dist. The job-level OPENCODE_TARGET=windows-x64 (used by the desktop steps)
+      # would narrow the build to the non-baseline binary, so it is overridden here.
       - name: Build CLI
         working-directory: packages/cli
+        env:
+          OPENCODE_TARGET: windows-x64-baseline
         run: |
           version="${VERSION#v}"
-          OPENCODE_CHANNEL=latest OPENCODE_VERSION="$version" \
-            bun run build --single --baseline
+          OPENCODE_CHANNEL=latest OPENCODE_VERSION="$version" bun run build
 
       - name: Build desktop
         working-directory: packages/desktop
@@ -110,7 +113,7 @@ jobs:
           test -f dist/desktop/opencode-desktop-win-x64.exe
           test -f "dist/desktop/opencode-desktop-win-x64-${VERSION#v}-portable.zip"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: desktop-windows-x64
           path: |
