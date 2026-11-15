@@ -107,6 +107,9 @@ bun run check                                 # canonical full lint + type-check
   `*.conf` discovered in `~/.config/protonvpn-wg`, so new tunnels need no code change.
 - 2026-11-15 — Bottom maintenance bar warns when the persisted free-limit lockout is active: red dot
   plus the reset time (or “reset required”), driven by the same `free-limit` state the composer uses.
+- 2026-11-15 — Repository moved to `main` and published at `tekalu-git/tekucode`
+  (private, `main` is the default branch). Root `README.md` rewritten for the fork; the loose
+  `opencode-wiper*` scripts stay untracked on purpose.
 - 2026-11-15 — New app icon: TC pixel lockup on a squircle tile. Ink tile for `prod`/`dev` and every
   dark surface, grass tile for `beta`, the theme-aware SVG favicon in light mode, and the
   apple-touch icon. Regenerated all channel icon folders (png/ico/icns/icon.icon/android/ios),

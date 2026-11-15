@@ -1,114 +1,146 @@
 <p align="center">
-  <a href="https://opencode.ai">
-    <picture>
-      <source srcset=".github/assets/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset=".github/assets/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src=".github/assets/logo-ornate-light.svg" alt="OpenCode logo">
-    </picture>
-  </a>
+  <img src="packages/desktop/icons/source/tc-ink.svg" width="96" alt="TekuCode">
 </p>
-<p align="center">The open source AI coding agent.</p>
+
+<h1 align="center">TekuCode</h1>
+
 <p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/@opencode/cli"><img alt="npm" src="https://img.shields.io/npm/v/@opencode/cli?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/release.yml?style=flat-square&branch=dev" /></a>
+  A terminal-native AI coding agent, forked from
+  <a href="https://github.com/anomalyco/opencode">opencode</a> (MIT).
+  Cockpit layout, grass theme, and a desktop app with built-in maintenance.
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-5fd068?style=flat-square">
+  <img alt="Runtime: Bun 1.4.4" src="https://img.shields.io/badge/runtime-bun%201.4.4-5fd068?style=flat-square">
+  <img alt="Status: development" src="https://img.shields.io/badge/status-development-e0a33a?style=flat-square">
 </p>
 
-[![OpenCode Terminal UI](services/site/public/v1/docs/assets/lander/screenshot.png)](https://opencode.ai)
-
 ---
 
-### Installation
+## What this is
 
-```bash
-# YOLO
-curl -fsSL https://opencode.ai/v2/install | bash
+TekuCode is a personal fork of opencode. The upstream agent — models, providers, tools, sessions,
+permissions, the HTTP API and the SDK — is kept intact. What changes here is the shell you work in:
 
-# Package managers
-npm i -g @opencode/cli@latest      # or bun/pnpm/yarn
-brew install anomalyco/tap/opencode-v2 # macOS and Linux (recommended, always up to date)
-brew install opencode              # macOS and Linux (official brew formula, updated less)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-beta              # Arch Linux (Latest from AUR)
-mise use -g opencode               # Any OS
-nix run github:anomalyco/opencode  # Nix
+- **Cockpit TUI.** A dense, terminal-native layout in `packages/tui`: a left rail with sessions and
+  subagents, the conversation in the center, and a docked right rail for `CONTEXT` and `PLAN`.
+- **Grass theme.** One accent hue (`#5fd068`) on neutral near-black panels, square edges, no other
+  saturated color except muted amber warnings and muted red deletions.
+- **TekuCode Desktop.** An Electron app (`packages/desktop`) with clean-slate maintenance built in:
+  database snapshot and selective restore, service restart with automatic window reload, and VPN
+  rotation between ProtonVPN WireGuard profiles.
+- **TC branding.** A pixel `T`/`C` lockup on a superellipse tile, generated per channel and reused for
+  the web favicon, apple-touch icon and PWA manifests.
+
+The CLI binary is still named `opencode`; renaming it is packaging work that has not happened yet.
+
+## Requirements
+
+- [Bun](https://bun.sh) `1.4.4` or newer (the version is pinned in `package.json`)
+- A GPU-backed terminal for the TUI; a Wayland or X11 session for the desktop app
+- Linux x64/arm64, macOS, or Windows for builds
+
+## Quick start
+
+```sh
+bun install
+
+bun run dev            # V2 CLI + cockpit TUI from source
+bun run dev:live       # same, against your already-running background service and live sessions
+bun run dev:desktop    # Electron desktop app (dev identity, local server)
+bun run dev:web        # web UI only
 ```
 
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
+`bun run dev` takes an optional directory, for example `bun run dev .` to open this repository.
 
-### Desktop App (BETA)
+### Cockpit TUI
 
-OpenCode is also available as a desktop application. Download it from [opencode.ai/download](https://opencode.ai/download).
+| Area     | Contents                                                        |
+| -------- | --------------------------------------------------------------- |
+| Left     | Session tabs, then the `AGENTS` list of subagent sessions        |
+| Center   | Conversation, composer, permission dialogs, diffs               |
+| Right    | `CONTEXT` and `PLAN` sections with a pinned context meter       |
+| Top      | Project, session, model, branch, command hint                   |
+| Bottom   | State, branch, token count, cost, elapsed time                  |
 
-| Platform              | Download                           |
-| --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `opencode-desktop-mac-x64.dmg`     |
-| Windows               | `opencode-desktop-win-x64.exe`     |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
+The right rail docks at 110 columns and wider. `<leader>p` toggles it
+(`session.rightrail.toggle`, persisted as `layout.rightRail`). The keymap is otherwise upstream's.
 
-```bash
-# macOS (Homebrew)
-brew install --cask opencode-desktop
+Render the cockpit bars without a session:
+
+```sh
+OPENCODE_STORY=cockpit bun run dev:live
 ```
 
-#### Installation Directory
+## Desktop app
 
-The install script installs OpenCode to `$HOME/.opencode/bin`.
+```sh
+cd packages/desktop
+bun run build          # builds renderer + main into out/
+bun run pack           # packages into dist/desktop at the repository root
+```
 
-### Agents
+`bun run build` bundles the CLI from `packages/cli/dist` when it holds your target; otherwise it
+downloads the matching published CLI. Production builds (`OPENCODE_CHANNEL=prod`) require a locally
+built CLI. `bun run pack` produces an AppImage, `.deb` and `.rpm` on Linux, a `.app` tarball on macOS,
+and the unpacked app on Windows, all unsigned.
 
-OpenCode includes two built-in agents you can switch between with the `Tab` key.
+| Variable           | Meaning                                                      |
+| ------------------ | ------------------------------------------------------------ |
+| `OPENCODE_CHANNEL` | `local`, `dev` (default), `beta`, or `prod`/`latest`          |
+| `OPENCODE_VERSION` | Version stamped into the app and its packages                 |
+| `OPENCODE_TARGET`  | `linux-x64`, `linux-arm64`, `darwin-arm64`, `darwin-x64`, `windows-x64`, `windows-arm64` |
 
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
+Channels use separate app identities and icon colourways so a dev and a beta build can sit side by
+side: `prod` and `dev` take the ink tile, `beta` the grass tile.
 
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
+## Repository layout
 
-Learn more about [agents](https://opencode.ai/docs/agents).
+| Path               | Contents                                            |
+| ------------------ | --------------------------------------------------- |
+| `packages/schema`  | Shared wire and storage contracts                   |
+| `packages/core`    | Domain behavior and persistence                     |
+| `packages/protocol`| Public API definitions                              |
+| `packages/server`  | HTTP server and runtime composition                 |
+| `packages/cli`     | Command-line entrypoint and service lifecycle       |
+| `packages/tui`     | Terminal interface — cockpit layout and grass theme |
+| `packages/app`     | Shared web interface                                |
+| `packages/desktop` | Electron desktop application                        |
+| `packages/plugin`  | Plugin API                                          |
+| `docs/`            | Cockpit spec, plan, and design notes                |
 
-### Documentation
+`TEKUCODE.md` in the repository root is the live state file: locked UI decisions, current status,
+next steps, and the changelog. Read it before changing anything in `packages/tui`.
 
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
+## Development
 
-### Contributing
+```sh
+bun run check                  # canonical full lint + type-check
+cd packages/tui && bun test    # package tests
+```
 
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
+Tests do not run from the repository root by design; run them from the package directory. Follow
+`AGENTS.md`, and any `AGENTS.md` next to the code you are touching, for style, commit format, and
+theme-token rules.
 
-### Building on OpenCode
+## Known issues
 
-If you are working on a project that's related to OpenCode and is using "opencode" as part of its name, for example "opencode-dashboard" or "opencode-mobile", please add a note to your README to clarify that it is not built by the OpenCode team and is not affiliated with us in any way.
+- `bun run check` currently fails on pre-existing `packages/core/src/plugin/provider/tor-http-client.ts`
+  type errors carried over from the fork's rebrand, and `turbo` occasionally exits with `SIGSEGV`
+  under `bun check`. Neither is caused by the TUI or desktop work.
+- Visual verification of the cockpit at 80×24, 110×30 and 160×40 is not recorded yet.
+- The CLI binary and npm packages still carry the `opencode` name.
 
----
+## Upstream
 
-**Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+- Upstream remote: `origin` → `https://github.com/anomalyco/opencode`, branch `dev`
+- Fork remote: `tekucode` → `https://github.com/tekalu-git/tekucode`, branch `main`
+
+`main` is the fork's branch. To pull upstream changes, fetch `origin` and merge or rebase `dev` onto
+`main`; keep cockpit work at real seams (new components, small edits) so merges stay cheap.
+
+## License
+
+MIT, inherited from opencode. See [LICENSE](LICENSE). All upstream copyright notices are retained;
+the TekuCode fork adds the cockpit TUI, grass theme, desktop maintenance features and branding.
