@@ -2,6 +2,13 @@ import type { EnableState } from "@opencode/plugin/gui/host"
 
 export const IpcTransportPort = "desktop-rpc-port"
 
+/**
+ * The renderer dispatches this on `window` once its port listener is attached. The main process posts
+ * the port on `did-finish-load`, which in development can fire before the renderer's module graph has
+ * run, so the preload holds the port until this arrives.
+ */
+export const IpcTransportReady = "opencode:desktop-rpc-ready"
+
 export const DragCancelEvent = "opencode:drag-cancel"
 
 export const WindowSnapshotChannel = "desktop-window-snapshot"

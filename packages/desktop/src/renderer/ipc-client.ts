@@ -2,7 +2,7 @@ import type { Effect } from "effect"
 import type { RpcMessage } from "effect/rpc"
 import type { DesktopRpcClient } from "../shared/ipc-rpc"
 import type { DesktopEvent } from "../shared/ipc-rpc/events"
-import { IpcTransportPort, omitUndefined } from "../shared/ipc-transport"
+import { IpcTransportPort, IpcTransportReady, omitUndefined } from "../shared/ipc-transport"
 import {
   createIpcClientState,
   PORT_HANDSHAKE_TIMEOUT_MS,
@@ -48,6 +48,9 @@ const onWindowMessage = (event: MessageEvent) => {
 }
 
 window.addEventListener("message", onWindowMessage)
+
+// The preload holds the port from `did-finish-load` until this fires; see IpcTransportReady.
+window.dispatchEvent(new Event(IpcTransportReady))
 
 const handshakeTimer = setTimeout(() => dispatch({ type: "handshake.timed-out" }), PORT_HANDSHAKE_TIMEOUT_MS)
 
