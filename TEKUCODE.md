@@ -107,6 +107,11 @@ bun run check                                 # canonical full lint + type-check
   `*.conf` discovered in `~/.config/protonvpn-wg`, so new tunnels need no code change.
 - 2026-11-15 — Bottom maintenance bar warns when the persisted free-limit lockout is active: red dot
   plus the reset time (or “reset required”), driven by the same `free-limit` state the composer uses.
+- 2026-11-15 — Fixed the packaged desktop app hanging on its splash screen. The shell waits for
+  `$XDG_STATE_HOME/opencode/service.json`, but a CLI built from the `main` branch registers as
+  `service-main.json`, so the service ran and was never found. Release builds must build the CLI with
+  `OPENCODE_CHANNEL=latest`. Verified in a clean Fedora container (AppImage + Xvfb + openbox):
+  service ready in ~15 s, onboarding renders.
 - 2026-11-15 — Fixed the desktop cold-start "Desktop IPC port handshake timed out": the main
   process posted the renderer's MessagePort on `did-finish-load`, which can beat the renderer's module
   graph in dev, so the port was dropped. The preload now holds it until the renderer dispatches

@@ -86,6 +86,21 @@ downloads the matching published CLI. Production builds (`OPENCODE_CHANNEL=prod`
 built CLI. `bun run pack` produces an AppImage, `.deb` and `.rpm` on Linux, a `.app` tarball on macOS,
 and the unpacked app on Windows, all unsigned.
 
+The CLI must be built for the **same channel as the app**, otherwise the desktop app hangs on its
+splash screen:
+
+```sh
+OPENCODE_CHANNEL=latest OPENCODE_VERSION=0.1.0 bun run --cwd packages/cli build --single --baseline
+OPENCODE_CHANNEL=prod   OPENCODE_VERSION=0.1.0 bun run --cwd packages/desktop build
+OPENCODE_CHANNEL=prod   OPENCODE_VERSION=0.1.0 bun run --cwd packages/desktop pack
+```
+
+The desktop shell looks for the background-service registration at
+`$XDG_STATE_HOME/opencode/service.json`. A CLI built from a branch (for example `main`) registers as
+`service-main.json`, so the shell never finds it and waits forever. Only the `latest` channel writes
+`service.json`. Build the CLI with `--baseline` on x64, because `packages/desktop/script/utils.ts` maps
+`linux-x64` to the baseline CLI package.
+
 | Variable           | Meaning                                                      |
 | ------------------ | ------------------------------------------------------------ |
 | `OPENCODE_CHANNEL` | `local`, `dev` (default), `beta`, or `prod`/`latest`          |
