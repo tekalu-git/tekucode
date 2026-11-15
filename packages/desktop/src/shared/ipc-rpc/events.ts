@@ -81,9 +81,18 @@ export class SidecarChanged extends Schema.TaggedClass<SidecarChanged>()("Sideca
   url: Schema.String,
 }) {}
 
+// One step of a maintenance wipe changed state. `id` identifies the run so a reloaded window ignores the rest.
+export class MaintenanceProgress extends Schema.TaggedClass<MaintenanceProgress>()("MaintenanceProgress", {
+  id: Schema.String,
+  step: Schema.String,
+  status: Schema.Literals(["running", "done", "skipped", "failed"]),
+  message: Schema.optionalKey(Schema.String),
+}) {}
+
 export const DesktopEvent = Schema.Union([
   DeepLinksOpened,
   SidecarChanged,
+  MaintenanceProgress,
   MenuCommandTriggered,
   WindowFullscreenChanged,
   WindowSystemAccentChanged,

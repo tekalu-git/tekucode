@@ -1,21 +1,15 @@
-import { createSignal, onCleanup, Show } from "solid-js"
-import { Schema } from "effect"
+import { createEffect, createSignal, onCleanup, Show } from "solid-js"
 import { Button } from "@opencode/ui/button"
 import { useDialog } from "@opencode/ui/context/dialog"
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform } from "@/runtime/platform/platform"
 import { Persist, persisted } from "@/runtime/persistence/storage"
-import { Persistence } from "@/runtime/persistence/schema"
 import { useWorkspaceLocation } from "@/workspaces/location"
 import type { ModelSelection } from "@/providers/models/selection"
 import { limitResetAt } from "../usage-exceeded-dialogs"
+import { FALLBACK_RESET_MS, FreeLimitState, freeLimitActive } from "./free-limit"
 
 const GO_URL = "https://opencode.ai/go"
-
-// OpenCode Zen always says when free usage resets; this covers a refusal that doesn't, or a delay out of range.
-const FALLBACK_RESET_MS = 3_600_000
-
-const FreeLimitState = Persistence.struct({ resetAt: Schema.NullOr(Schema.Finite) })
 
 // Free usage is counted per network, not per session, so one refusal anywhere holds until it resets. Connecting a paid
 // provider ends it early.
@@ -23,6 +17,11 @@ export function useFreeLimit(paid: () => boolean) {
   const location = useWorkspaceLocation()
   const [state, setState] = persisted(Persist.global("free-limit"), FreeLimitState, { resetAt: null })
   const [now, setNow] = createSignal(Date.now())
+
+  // A paid provider supersedes the lockout; clearing it keeps the persisted signal honest for other readers.
+  createEffect(() => {
+    if (paid() && state.resetAt !== null) setState("resetAt", null)
+  })
 
   onCleanup(
     location().event.on("session.step.failed", (event) => {
@@ -42,11 +41,7 @@ export function useFreeLimit(paid: () => boolean) {
 
   return {
     resetAt,
-    active: () => {
-      const at = resetAt()
-
-      return !paid() && at !== null && at > now()
-    },
+    active: () => !paid() && freeLimitActive(resetAt(), now()),
   }
 }
 

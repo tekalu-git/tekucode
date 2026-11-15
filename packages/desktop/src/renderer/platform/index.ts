@@ -54,6 +54,11 @@ export function createDesktopPlatform(api: ElectronAPI, windowState: DesktopWind
     checkAppExists: async (appName) => {
       return api.checkAppExists(appName)
     },
+    maintenance: {
+      status: () => api.maintenanceStatus(),
+      wipe: (options) => api.maintenanceWipe(options),
+      onProgress: (callback) => api.onMaintenanceProgress(callback),
+    },
     plugins: createPluginBridge(),
   }
 }

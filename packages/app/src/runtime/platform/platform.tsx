@@ -25,6 +25,46 @@ type PlatformName = "web" | "desktop"
 
 type DesktopOS = "macos" | "windows" | "linux"
 
+/** One run of the maintenance wipe, as main reports it to every window. */
+export type MaintenanceProgress = {
+  id: string
+  step: string
+  status: "running" | "done" | "skipped" | "failed"
+  message?: string
+}
+
+export type MaintenanceConfig = {
+  id: string
+  label: string
+  file: string
+}
+
+export type MaintenanceStatus = {
+  supported: boolean
+  vpn: {
+    connected: boolean
+    country?: string
+    interface?: string
+    ip?: string
+  }
+  configs: readonly MaintenanceConfig[]
+}
+
+export type MaintenanceResult = {
+  ok: boolean
+  wiped: boolean
+  reason?: "busy" | "unsupported" | "invalid-password" | "elevation-required" | "missing-config" | "failed"
+  message?: string
+  ip?: string
+  backup?: string
+}
+
+export type MaintenanceBridge = {
+  status(): Promise<MaintenanceStatus>
+  wipe(options: { rotate: boolean; country?: string; password?: string }): Promise<MaintenanceResult>
+  onProgress(cb: (progress: MaintenanceProgress) => void): () => void
+}
+
 export type FatalRendererErrorLog = {
   error: string
   url: string
@@ -137,6 +177,9 @@ type PlatformBase = {
 
   /** GUI plugin bridge to the main-process plugin host (desktop only). */
   plugins?: Bridge
+
+  /** Data reclaim and VPN rotation, wired in the desktop main process (Linux only). */
+  maintenance?: MaintenanceBridge
 }
 
 export type Platform = PlatformBase &

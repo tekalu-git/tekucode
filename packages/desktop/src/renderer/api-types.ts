@@ -82,4 +82,46 @@ export type ElectronAPI = {
   setSpellcheckEnabled(enabled: boolean): Promise<void>
   recordFatalRendererError(error: FatalRendererError): Promise<void>
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
+  maintenanceStatus(): Promise<MaintenanceStatusData>
+  maintenanceWipe(options: MaintenanceWipeOptions): Promise<MaintenanceResultData>
+  onMaintenanceProgress(cb: (progress: MaintenanceProgressData) => void): () => void
+}
+
+export type MaintenanceConfigData = {
+  id: string
+  label: string
+  file: string
+}
+
+export type MaintenanceStatusData = {
+  supported: boolean
+  vpn: {
+    connected: boolean
+    country?: string
+    interface?: string
+    ip?: string
+  }
+  configs: readonly MaintenanceConfigData[]
+}
+
+export type MaintenanceWipeOptions = {
+  rotate: boolean
+  country?: string
+  password?: string
+}
+
+export type MaintenanceResultData = {
+  ok: boolean
+  wiped: boolean
+  reason?: "busy" | "unsupported" | "invalid-password" | "elevation-required" | "missing-config" | "failed"
+  message?: string
+  ip?: string
+  backup?: string
+}
+
+export type MaintenanceProgressData = {
+  id: string
+  step: string
+  status: "running" | "done" | "skipped" | "failed"
+  message?: string
 }

@@ -1,6 +1,6 @@
 import { app } from "electron"
 import type { Endpoint } from "@opencode/client/service"
-import { Context, Effect, FileSystem, Layer, Option, Path, Schema } from "effect"
+import { Context, Deferred, Effect, FileSystem, Layer, Option, Path, Ref, Schema } from "effect"
 import { SidecarChanged } from "../../shared/ipc-rpc/events"
 import { CHANNEL } from "../constants"
 import { emitIpcEvent } from "../ipc-events"
@@ -19,6 +19,12 @@ const RegisteredService = Schema.Struct({ version: Schema.optional(Schema.String
 export interface Interface {
   readonly connection: Effect.Effect<SidecarCredentials.Data>
   readonly reconnect: Effect.Effect<SidecarCredentials.Data>
+  /**
+   * Holds new connects and reconnects until the returned effect runs. A maintenance wipe stops the
+   * service on purpose; without the gate every window's retry would start a new one against half-wiped
+   * data. Callers already inside an attempt finish it.
+   */
+  readonly pause: Effect.Effect<Effect.Effect<void>>
 }
 
 export class Service extends Context.Service<Service, Interface>()("opencode/desktop/BackgroundService") {}
@@ -28,18 +34,48 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const context = yield* Effect.context<FileSystem.FileSystem | Path.Path | DesktopCli.Service>()
 
-    return Service.of(
-      yield* BackgroundServiceMachine.make({
-        probe: probe().pipe(Effect.provide(context)),
-        ensure: (mode) => ensure(mode).pipe(Effect.provide(context)),
-        publish: (data) => {
-          SidecarCredentials.set(data)
-          // Every window moves its requests and event stream to the new origin, not only the one that reconnected.
-          const event = new SidecarChanged({ url: data.url })
-          getMainWindows().forEach((win) => emitIpcEvent(win.webContents, event))
-        },
+    const machine = yield* BackgroundServiceMachine.make({
+      probe: probe().pipe(Effect.provide(context)),
+      ensure: (mode) => ensure(mode).pipe(Effect.provide(context)),
+      publish: (data) => {
+        SidecarCredentials.set(data)
+        // Every window moves its requests and event stream to the new origin, not only the one that reconnected.
+        const event = new SidecarChanged({ url: data.url })
+        getMainWindows().forEach((win) => emitIpcEvent(win.webContents, event))
+      },
+    })
+
+    const paused = yield* Ref.make<Option.Option<Deferred.Deferred<void>>>(Option.none())
+
+    const wait = Effect.gen(function* () {
+      const gate = yield* Ref.get(paused)
+
+      if (Option.isSome(gate)) yield* Deferred.await(gate.value)
+    })
+
+    return Service.of({
+      connection: Effect.gen(function* () {
+        yield* wait
+
+        return yield* machine.connection
       }),
-    )
+      reconnect: Effect.gen(function* () {
+        yield* wait
+
+        return yield* machine.reconnect
+      }),
+      pause: Effect.gen(function* () {
+        const gate = yield* Deferred.make<void>()
+        yield* Ref.set(paused, Option.some(gate))
+
+        return Effect.gen(function* () {
+          yield* Ref.update(paused, (current) =>
+            Option.isSome(current) && current.value === gate ? Option.none() : current,
+          )
+          yield* Deferred.succeed(gate, undefined)
+        })
+      }),
+    })
   }),
 )
 

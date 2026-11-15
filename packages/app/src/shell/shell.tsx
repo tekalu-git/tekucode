@@ -18,6 +18,7 @@ import { useLanguage } from "@/runtime/i18n/language"
 import { useGlobal } from "@/runtime/server/runtime"
 import { useServers } from "@/runtime/server/registry"
 import { useTabs } from "@/shell/tabs/tabs"
+import { MaintenanceBar } from "@/shell/maintenance/bar"
 import {
   CollapsedSidebarToggle,
   collapsedSidebarToggleEnd,
@@ -324,6 +325,7 @@ export default function Layout(props: ParentProps) {
           Last in order, so it stays below a bottom titlebar (also order-last, but earlier in the DOM). */}
       <div data-slot="composer-touch-bar-mount" class="order-last shrink-0" />
       <PluginSlot at="window.bottom" input={{}} />
+      <MaintenanceBar />
       <ToastRegion />
       <UploadToastHost />
     </div>

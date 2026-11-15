@@ -40,19 +40,21 @@ Regions for width ≥ 110 columns:
 ```
 
 - **Top bar** (1 row): project name (accent), session breadcrumb, model pill, git branch pill, key hint.
-- **Left rail** (default 26 cols, min 18, max 36): SESSIONS list from existing session tabs data, then
-  AGENTS list (subagent sessions with run/idle indicator). Seed: `routes/session/sidebar.tsx` and the
-  existing vertical tabs machinery; do not introduce a second source of truth.
+- **Left rail** (default 28 cols, compact below 12, max 72): SESSIONS list from existing session tabs
+  data, then an AGENTS list (subagent sessions with run/idle indicator). Seed: the existing vertical
+  tabs machinery; do not introduce a second source of truth.
 - **Center** (min 44 cols): existing message stream and composer. No renderer changes.
-- **Right rail** (default 30 cols, min 24, max 40): CONTEXT (changed files with status letters) above
-  PLAN (session todos, done/todo), with the context meter pinned at the bottom.
+- **Right rail** (default 32 cols, min 24, max 40): CONTEXT (usage/tokens) above PLAN (session todos,
+  done/todo), with the context meter pinned at the bottom. Reuses the existing `Sidebar` and its
+  `sidebar.content` plugin slot.
 - **Status bar** (1 row): branch/clean state, token count, cost, elapsed, contextual key hints.
 
-Responsive behavior:
+Responsive behavior (shipped):
 - `< 110` cols: right rail hidden by default; toggled as an overlay/docked pane using existing panel
   split behavior (`ui/layout.ts` constants, `SESSION_PANEL_SPLIT_MIN_WIDTH`).
-- `< 88` cols: both rails become overlays; center always keeps at least 44 cols.
-- No regression at 80x24: the session must remain usable with rails hidden.
+- Below the cockpit breakpoint both rails follow the original upstream behavior; the center always
+  keeps at least 44 cols.
+- No regression at 80x24: the session remains usable with rails hidden.
 
 Implementation seams (new code stays reviewable):
 - `packages/tui/src/ui/layout.ts` — add rail width constants/clamps and breakpoints.

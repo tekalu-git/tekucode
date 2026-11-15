@@ -2,8 +2,8 @@
 # opencode - Run OpenCode from source with fingerprint support
 # This wrapper runs the CLI from source so it picks up all changes
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_DIR="$SCRIPT_DIR/packages/cli"
+SOURCE_DIR="/home/tekalu/Documents/Projects/TekuCode/opencode"
+CLI_DIR="$SOURCE_DIR/packages/cli"
 
 # Use bun from ~/.bun/bin if not in PATH
 if command -v bun >/dev/null 2>&1; then

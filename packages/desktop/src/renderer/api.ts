@@ -21,6 +21,12 @@ export const api: ElectronAPI = {
   awaitInitialization: () => invoke("AppAwaitInitialization"),
   reconnectService: (signal) => cancellable("AppReconnectService", undefined, signal),
   onSidecarChanged: (cb) => listen("SidecarChanged", (event) => cb({ url: event.url })),
+  maintenanceStatus: () => invoke("MaintenanceStatus"),
+  maintenanceWipe: (options) => invoke("MaintenanceWipe", options),
+  onMaintenanceProgress: (cb) =>
+    listen("MaintenanceProgress", (event) =>
+      cb({ id: event.id, step: event.step, status: event.status, message: event.message }),
+    ),
   readyDeepLinks: () => send("AppReadyDeepLinks"),
   acknowledgeDeepLinks: (attempt) => send("AppAcknowledgeDeepLinks", { attempt }),
   isFirstLaunchOnboardingPending: () => invoke("AppIsFirstLaunchOnboardingPending"),
