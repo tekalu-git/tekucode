@@ -1,0 +1,133 @@
+name: build-windows
+
+# Builds the unsigned Windows desktop app on a GitHub-hosted Windows runner.
+# Windows containers only run on a Windows host, so a Linux container cannot produce win-x64 artifacts;
+# this workflow is the supported path. It mirrors the two-stage packing of release.yml:
+#   1. pack the app to an unpacked directory (dist/desktop/app)
+#   2. pack the NSIS installer around that directory (dist/desktop/opencode-desktop-win-x64.exe)
+# The second stage must run from a copy outside dist/desktop, because pack.ts wipes its output first.
+#
+# Trigger manually for a one-off build, or push a v* tag to also attach the assets to that release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version stamped into the app and the bundled CLI
+        required: true
+        default: "0.1.0"
+      upload_to_release:
+        description: Attach the installer and portable zip to the release matching the version tag
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      OPENCODE_TARGET: windows-x64
+      VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-bun
+
+      # The bundled CLI must be the `latest` channel: the desktop shell polls
+      # $XDG_STATE_HOME/opencode/service.json, and a branch-channel CLI registers as
+      # service-<branch>.json, which the shell never finds (the app hangs on the splash screen).
+      # --single builds only this runner's platform, and --baseline matches the windows-x64
+      # CLI package that electron-builder verifies in afterPack.
+      - name: Build CLI
+        working-directory: packages/cli
+        run: |
+          version="${VERSION#v}"
+          OPENCODE_CHANNEL=latest OPENCODE_VERSION="$version" \
+            bun run build --single --baseline
+
+      - name: Build desktop
+        working-directory: packages/desktop
+        run: |
+          version="${VERSION#v}"
+          OPENCODE_CHANNEL=prod OPENCODE_VERSION="$version" NODE_OPTIONS=--max-old-space-size=4096 \
+            bun run build
+
+      # Stage 1: unpacked app in dist/desktop/app, with app-update.yml written in.
+      - name: Pack app
+        working-directory: packages/desktop
+        timeout-minutes: 30
+        run: |
+          version="${VERSION#v}"
+          OPENCODE_CHANNEL=prod OPENCODE_VERSION="$version" bun run pack
+
+      - name: Verify bundled app
+        run: |
+          app="dist/desktop/app"
+          test -f "$app/TekuCode.exe"
+          test -f "$app/resources/opencode-cli.exe"
+          "$app/resources/opencode-cli.exe" --version
+
+      # pack.ts deletes dist/desktop before writing, so the app it packages must live elsewhere.
+      - name: Stage app for installer
+        run: |
+          rm -rf "$RUNNER_TEMP/app"
+          mkdir -p "$RUNNER_TEMP/app"
+          cp -R dist/desktop/app "$RUNNER_TEMP/app/app"
+
+      # Stage 2: NSIS installer around the already-packed app. Signed in the upstream release
+      # workflow; unsigned here, so Windows SmartScreen warns on first run.
+      - name: Pack installer
+        working-directory: packages/desktop
+        timeout-minutes: 30
+        run: |
+          version="${VERSION#v}"
+          OPENCODE_CHANNEL=prod OPENCODE_VERSION="$version" \
+            OPENCODE_DESKTOP_APP="$RUNNER_TEMP/app/app" bun run pack
+
+      - name: Pack portable zip
+        run: |
+          version="${VERSION#v}"
+          # Zip the contents, not the folder, so the extracted archive has TekuCode.exe at its root.
+          powershell -NoProfile -Command "Compress-Archive -Path '$(cygpath -w "$RUNNER_TEMP/app/app")\\*' -DestinationPath '$(cygpath -w "$PWD/dist/desktop")/opencode-desktop-win-x64-${version}-portable.zip' -CompressionLevel Optimal"
+
+      - name: Verify artifacts
+        run: |
+          ls -lh dist/desktop
+          test -f dist/desktop/opencode-desktop-win-x64.exe
+          test -f "dist/desktop/opencode-desktop-win-x64-${VERSION#v}-portable.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-x64
+          path: |
+            dist/desktop/opencode-desktop-win-x64.exe
+            dist/desktop/opencode-desktop-win-x64-*-portable.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach to release
+        if: github.event_name == 'push' || inputs.upload_to_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${VERSION#v}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "TekuCode ${VERSION#v}" --generate-notes
+          gh release upload "$tag" \
+            dist/desktop/opencode-desktop-win-x64.exe \
+            "dist/desktop/opencode-desktop-win-x64-${VERSION#v}-portable.zip" \
+            --repo "$GITHUB_REPOSITORY" --clobber
