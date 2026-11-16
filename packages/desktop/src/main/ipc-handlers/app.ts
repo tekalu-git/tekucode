@@ -10,6 +10,7 @@ import { setNativeTranslations } from "../native/translations"
 import { IpcPortHandoff } from "../ipc-transport"
 import { ApplicationLifecycle } from "../lifecycle"
 import { finishFirstLaunchOnboarding, isFirstLaunchOnboardingPending } from "../lifecycle/onboarding"
+import { finishOnboardingTour, isOnboardingTourPending, resetOnboardingTour } from "../lifecycle/onboarding-tour"
 import { BackgroundService } from "../service/background-service"
 import { SidecarCredentials } from "../service/sidecar-credentials"
 import { getWindowID, setBackgroundColor } from "../windows"
@@ -39,6 +40,9 @@ export const appHandlers = AppRpcs.toLayer(
       AppIsFirstLaunchOnboardingPending: isFirstLaunchOnboardingPending,
       AppFinishFirstLaunchOnboarding: ({ createDefaultProject }) =>
         finishFirstLaunchOnboarding(createDefaultProject).pipe(Effect.orDie),
+      AppIsOnboardingTourPending: isOnboardingTourPending,
+      AppFinishOnboardingTour: finishOnboardingTour,
+      AppResetOnboardingTour: resetOnboardingTour,
       AppCheckAppExists: ({ appName }) => checkAppExists(appName).pipe(Effect.orDie),
       AppResolveAppPath: ({ appName }) => resolveAppPath(appName).pipe(Effect.orDie),
       AppSetBackgroundColor: ({ color }) => Effect.sync(() => setBackgroundColor(color)),

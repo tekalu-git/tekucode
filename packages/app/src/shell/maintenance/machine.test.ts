@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { initialState, transition, type Event, type State } from "./machine"
+import { failureKey, initialState, transition, type Event, type State } from "./machine"
 
 function replay(events: readonly Event[], from: State = initialState()) {
   return events.reduce((state, event) => transition(state, event), from)
@@ -45,7 +45,21 @@ describe("maintenance dialog", () => {
       { type: "run.succeeded", ip: "203.0.113.9" },
     ])
 
-    expect(done).toEqual({ status: "done", form: { rotate: true, country: "nl", password: "" }, ip: "203.0.113.9" })
+    expect(done).toEqual({
+      status: "done",
+      form: { backup: true, rotate: true, country: "nl", password: "" },
+      ip: "203.0.113.9",
+    })
     expect(transition(done, { type: "run.started" })).toBe(done)
+  })
+})
+
+describe("maintenance failure copy", () => {
+  test("a missing WireGuard install points at the setup message", () => {
+    expect(failureKey("missing-wireguard")).toBe("maintenance.dialog.missingWireguard")
+  })
+
+  test("an unsupported platform keeps its own message", () => {
+    expect(failureKey("unsupported")).toBe("maintenance.dialog.unsupported")
   })
 })

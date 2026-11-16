@@ -35,7 +35,7 @@ export interface DatabaseWiperInterface {
   readonly wipe: (params: { dbPath: string }) => Effect.Effect<void>
 }
 
-export const DatabaseWiper = Context.Service<DatabaseWiperInterface>()("@opencode/DatabaseWiper")
+export class DatabaseWiper extends Context.Service<DatabaseWiper, DatabaseWiperInterface>()("@opencode/DatabaseWiper") {}
 
 export const DatabaseWiperLive = Layer.effect(
   DatabaseWiper,

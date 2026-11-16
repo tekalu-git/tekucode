@@ -69,6 +69,21 @@ describe("state store", () => {
     ])
   })
 
+  test("clearAll drops every namespace and every queued write", () => {
+    const { db, store } = open()
+    store.set("w1", "tabs", "[]")
+    store.set("w2", "tabs", "[]")
+    store.flush()
+    store.set("w2", "recent", "{}")
+    store.set("global", "free-limit", '{"resetAt":1}')
+    store.clearAll()
+    expect(store.items("w1")).toEqual({ items: {}, revision: 0 })
+    expect(store.items("w2")).toEqual({ items: {}, revision: 0 })
+    expect(store.items("global")).toEqual({ items: {}, revision: 0 })
+    store.flush()
+    expect(rows(db)).toEqual([])
+  })
+
   test("a failed flush keeps every acknowledged write until a later flush succeeds", () => {
     const database = openDatabase(":memory:")
     const errors: unknown[] = []

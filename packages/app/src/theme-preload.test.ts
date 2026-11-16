@@ -21,10 +21,10 @@ beforeEach(() => {
 
 describe("theme preload", () => {
   test.each([
-    { stored: undefined, systemDark: false, scheme: "light", background: "#fafafa" },
-    { stored: "dark", systemDark: false, scheme: "dark", background: "#080808" },
-    { stored: "light", systemDark: true, scheme: "light", background: "#fafafa" },
-    { stored: "system", systemDark: true, scheme: "dark", background: "#080808" },
+    { stored: undefined, systemDark: false, scheme: "light", background: "#e9ebe8" },
+    { stored: "dark", systemDark: false, scheme: "dark", background: "#08090a" },
+    { stored: "light", systemDark: true, scheme: "light", background: "#e9ebe8" },
+    { stored: "system", systemDark: true, scheme: "dark", background: "#08090a" },
   ])(
     "paints the default theme in $scheme for stored scheme $stored (system dark: $systemDark)",
     ({ stored, systemDark, scheme, background }) => {
@@ -33,11 +33,20 @@ describe("theme preload", () => {
       if (stored) localStorage.setItem("opencode-color-scheme", stored)
       run()
 
-      expect(document.documentElement.dataset.theme).toBe("oc-2")
+      expect(document.documentElement.dataset.theme).toBe("grass")
       expect(document.documentElement.dataset.colorScheme).toBe(scheme)
       expect(document.documentElement.style.backgroundColor).toBe(background)
     },
   )
+
+  test("moves the pre-grass default to grass once", () => {
+    localStorage.setItem("opencode-theme-id", "oc-2")
+    run()
+
+    expect(document.documentElement.dataset.theme).toBe("grass")
+    expect(localStorage.getItem("opencode-theme-id")).toBe("grass")
+    expect(localStorage.getItem("opencode-theme-default-migrated")).toBe("1")
+  })
 
   test.each([
     { scheme: undefined, key: "opencode-theme-css-light", css: "--background-base:#fff;", expected: "light" },

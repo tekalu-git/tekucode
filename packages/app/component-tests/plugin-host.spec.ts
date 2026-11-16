@@ -1718,7 +1718,7 @@ story(
       await until(() => root.dataset.theme === "acme:midnight")
 
       host.disable("acme")
-      await until(() => root.dataset.theme === "oc-2")
+      await until(() => root.dataset.theme === "grass")
 
       const withdrawn = {
         listed: host.options().some((option: { id: string }) => option.id === "acme:midnight"),
@@ -1737,7 +1737,7 @@ story(
     expect(result).toEqual({
       // Alphabetical among the app's themes, not appended after them.
       neighbors: ["Mercury", "Midnight", "Monokai"],
-      withdrawn: { listed: false, selected: "oc-2", stored: "acme:midnight" },
+      withdrawn: { listed: false, selected: "grass", stored: "acme:midnight" },
       restored: "acme:midnight",
     })
   },
@@ -1837,8 +1837,8 @@ story("a theme preview survives a system light/dark flip and a plugin theme arri
   await host.evaluate((host) => host.unmount())
 
   expect({ previewed, flipped, midnight, cancelled, committed }).toEqual({
-    previewed: { theme: "oc-2", shown: "light", mode: "light", scheme: "system", id: null, cached: [false, false] },
-    flipped: { theme: "oc-2", shown: "light", mode: "light", scheme: "system", id: null, cached: [false, false] },
+    previewed: { theme: "grass", shown: "light", mode: "light", scheme: "system", id: null, cached: [false, false] },
+    flipped: { theme: "grass", shown: "light", mode: "light", scheme: "system", id: null, cached: [false, false] },
     midnight: {
       theme: "acme:midnight",
       shown: "light",
@@ -1847,7 +1847,7 @@ story("a theme preview survives a system light/dark flip and a plugin theme arri
       id: null,
       cached: [false, false],
     },
-    cancelled: { theme: "oc-2", shown: "dark", mode: "dark", scheme: "system", id: null, cached: [false, false] },
+    cancelled: { theme: "grass", shown: "dark", mode: "dark", scheme: "system", id: null, cached: [false, false] },
     committed: {
       theme: "acme:midnight",
       shown: "dark",
@@ -1876,7 +1876,7 @@ story("a selected plugin theme that never returns shows the default theme once p
     root.dataset.theme = "frame"
 
     host.load()
-    await until(() => root.dataset.theme === "oc-2")
+    await until(() => root.dataset.theme === "grass")
 
     const settled = {
       selected: host.selected(),
@@ -1891,7 +1891,7 @@ story("a selected plugin theme that never returns shows the default theme once p
 
   expect(result).toEqual({
     waiting: "gone:midnight",
-    settled: { selected: "oc-2", stored: "gone:midnight", cached: null },
+    settled: { selected: "grass", stored: "gone:midnight", cached: null },
   })
 })
 

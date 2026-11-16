@@ -59,7 +59,9 @@ export function MaintenanceBar() {
 
   const open = () => void dialog.show(() => <DialogMaintenance initial={status()} />)
   const running = () => progress()?.status === "running"
-  const connected = () => status()?.vpn.connected === true
+  const unsupported = () => status()?.supported === false
+  const connected = () => !unsupported() && status()?.vpn.connected === true
+  const wireguardMissing = () => !unsupported() && !connected() && status()?.wireguard.installed === false
 
   const country = () => {
     const code = status()?.vpn.country
@@ -97,12 +99,18 @@ export function MaintenanceBar() {
           when={status()}
           fallback={<span data-slot="maintenance-bar-label">{language.t("maintenance.bar.checking")}</span>}
         >
-          <span data-slot="maintenance-bar-label">
-            {connected()
-              ? language.t("maintenance.bar.vpn", { country: country() })
-              : language.t("maintenance.bar.direct")}
+          <span data-slot="maintenance-bar-label" data-warning={wireguardMissing() ? "" : undefined}>
+            {unsupported()
+              ? language.t("maintenance.bar.unsupported")
+              : wireguardMissing()
+                ? language.t("maintenance.bar.wireguardMissing")
+                : connected()
+                  ? language.t("maintenance.bar.vpn", { country: country() })
+                  : language.t("maintenance.bar.direct")}
           </span>
-          <Show when={ip()}>{(address) => <code data-slot="maintenance-bar-ip">{address()}</code>}</Show>
+          <Show when={!unsupported() && ip()}>
+            {(address) => <code data-slot="maintenance-bar-ip">{address()}</code>}
+          </Show>
         </Show>
       </span>
 

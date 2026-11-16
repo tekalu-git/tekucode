@@ -39,7 +39,9 @@ export interface FingerprintServiceInterface {
   readonly rotate: (params: { fingerprintPath: string }) => Effect.Effect<Fingerprint>
 }
 
-export const FingerprintService = Context.Service<FingerprintServiceInterface>()("@opencode/FingerprintService")
+export class FingerprintService extends Context.Service<FingerprintService, FingerprintServiceInterface>()(
+  "@opencode/FingerprintService",
+) {}
 
 export const FingerprintServiceLive = Layer.effect(
   FingerprintService,

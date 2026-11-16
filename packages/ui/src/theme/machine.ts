@@ -4,7 +4,17 @@ export type ColorScheme = "light" | "dark" | "system"
 
 export type ResolvedMode = "light" | "dark"
 
-export const DEFAULT_THEME_ID = "oc-2"
+export const DEFAULT_THEME_ID = "grass"
+
+/** The default before grass; installs still on it never chose a theme. */
+export const LEGACY_DEFAULT_THEME_ID = "oc-2"
+
+/** The theme id to store when upgrading past the pre-grass default, or null to keep the stored id. */
+export function migrateThemeId(stored: string | null, migrated: boolean) {
+  if (migrated || stored !== LEGACY_DEFAULT_THEME_ID) return null
+
+  return DEFAULT_THEME_ID
+}
 
 /** A bundled theme import that has not settled by then shows the default theme until it arrives. */
 export const THEME_LOAD_TIMEOUT_MS = 5_000

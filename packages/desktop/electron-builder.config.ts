@@ -111,6 +111,8 @@ const getBase = (appId: string): Configuration => {
         to: "",
         filter: ["opencode-cli", "opencode-cli.exe", "opencode-cli.version"],
       },
+      // The early window and the dock icon load these from process.resourcesPath, next to the asar.
+      { from: "resources/icons/", to: "icons", filter: ["*.png"] },
     ],
     afterPack: async (context) => {
       const arch = Arch[context.arch]

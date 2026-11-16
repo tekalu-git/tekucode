@@ -1,31 +1,25 @@
 import { DatabaseSync } from "node:sqlite"
 import { spawn } from "node:child_process"
 import { cp, mkdir, readdir, rm, stat } from "node:fs/promises"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
+import { runPowerShell } from "./elevate"
 
-/** The tables that tie a database to sessions, projects, or the account behind them. */
-const identityTables = [
-  "session_v2",
-  "session_message",
-  "session_part",
-  "session_inbox",
-  "instruction_entry",
-  "instruction_state",
-  "instruction_blob",
-  "permission",
-  "event",
-  "event_sequence",
-  "project_directory",
-  "project",
-  "worktree",
-  "control_account",
-  "account",
-  "account_state",
-  "blob",
-  "blob_ref",
-  "job",
-  "schedule",
-]
+/** Tables that record schema progress rather than anything a person created. */
+const bookkeepingTables = new Set(["migration", "data_migration"])
+
+/**
+ * Files that carry auth or identity even though they live in the config directory. They are excluded
+ * from the snapshot and from the restore, so a wipe never keeps a previous login alive.
+ */
+export const secretFiles: ReadonlySet<string> = new Set([
+  "auth.json",
+  "credentials.json",
+  "account.json",
+  "accounts.json",
+  "oauth.json",
+  "service.json",
+  "service-local.json",
+])
 
 export async function exists(path: string) {
   return stat(path).then(
@@ -51,46 +45,32 @@ export async function restoreDatabase(snapshot: string, target: string) {
 }
 
 /**
- * Drops the rows that identify the install while keeping the model catalog and provider credentials.
- * `local` also drops its whole `kv` table; the main database keeps everything but repository caches.
- * The table lists match the `opencode-wiper` script, so both paths leave the same shape behind.
+ * Deletes every user row from a restored database, keeping only the schema journal so the next
+ * service start does not replay migrations. This covers sessions, projects, accounts, credentials,
+ * cached model data and artifacts alike, so no previous identity survives the wipe. VACUUM then
+ * rewrites the file, leaving none of the deleted rows in free pages.
  */
-export function clearIdentity(databasePath: string, scope: "main" | "local") {
+export function clearUserData(databasePath: string) {
   const database = new DatabaseSync(databasePath)
 
   try {
-    const tables = new Set(
-      database
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-        .all()
-        .map((row) => String(row.name)),
-    )
+    const tables = database
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+      .all()
+      .map((row) => String(row.name))
+      .filter((name) => !bookkeepingTables.has(name))
 
+    database.exec("PRAGMA secure_delete = ON")
     database.exec("PRAGMA foreign_keys = OFF")
     database.exec("BEGIN")
 
-    for (const table of identityTables) {
-      if (tables.has(table)) database.exec(`DELETE FROM "${table}"`)
-    }
-
-    if (tables.has("kv"))
-      database.exec(
-        scope === "local" ? "DELETE FROM kv" : "DELETE FROM kv WHERE key LIKE 'repository-cache:%'",
-      )
+    for (const table of tables) database.exec(`DELETE FROM "${table.replaceAll('"', '""')}"`)
 
     database.exec("COMMIT")
+    database.exec("VACUUM")
   } finally {
     database.close()
   }
-}
-
-/** Clears the desktop's own go-upsell and free-limit lockouts through the storage connection, so the
- * in-memory state store cannot write a cached key back over the deletion. */
-export function clearLockouts(database: DatabaseSync) {
-  const ready = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'state'").get()
-
-  if (!ready) return
-  database.exec("DELETE FROM state WHERE key LIKE '%go-upsell%' OR key LIKE '%free-limit%'")
 }
 
 export async function remove(path: string) {
@@ -106,14 +86,23 @@ export async function clearLegacy(path: string) {
   await Promise.all(entries.filter((entry) => entry !== "bin").map((entry) => remove(join(path, entry))))
 }
 
-export async function copyTree(source: string, target: string) {
+export async function copyTree(source: string, target: string, skip?: ReadonlySet<string>) {
   if (!(await exists(source))) return
   await mkdir(dirname(target), { recursive: true })
-  await cp(source, target, { recursive: true, force: true })
+  await cp(source, target, {
+    recursive: true,
+    force: true,
+    filter: skip ? (entry) => !skip.has(basename(entry)) : undefined,
+  })
 }
 
 /** Stops any server this app did not register, matching what the wiper's `pkill` line covers. */
 export function pkillServers() {
+  if (process.platform === "win32")
+    return runPowerShell(
+      "Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*opencode*' -and $_.CommandLine -match 'serve' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+    ).then(() => undefined)
+
   return new Promise<void>((resolve) => {
     const child = spawn("pkill", ["-f", "opencode.*serve"], { stdio: "ignore" })
 

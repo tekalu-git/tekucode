@@ -4,7 +4,7 @@ Canonical state file for the TekuCode fork. **Any new session: read this before 
 Update the Status / Next / Changelog sections whenever something big changes (new phase done,
 architecture decision, rename, dependency bump, branch move).
 
-Last updated: 2026-11-14
+Last updated: 2026-11-16
 
 ## What this is
 
@@ -123,3 +123,33 @@ bun run check                                 # canonical full lint + type-check
   dark surface, grass tile for `beta`, the theme-aware SVG favicon in light mode, and the
   apple-touch icon. Regenerated all channel icon folders (png/ico/icns/icon.icon/android/ios),
   the web favicons/manifest icons, and renamed the PWA manifests from OpenCode to TekuCode.
+- 2026-11-15 — Windows support for clean-slate maintenance. Data reclaiming now runs on Windows
+  (`Stop-Process` for stray servers, same XDG-resolved data directories as the CLI), and tunnel
+  rotation drives WireGuard for Windows through one UAC-elevated PowerShell call
+  (`/uninstalltunnelservice` for every known tunnel, then `/installtunnelservice` for the target).
+  Configs live in `%APPDATA%\opencode\protonvpn-wg` on Windows and `~/.config/protonvpn-wg` elsewhere.
+  The dialog now warns when WireGuard (or `wireguard-tools` on Linux) is missing, shows the exact
+  config folder with an "Open folder" button, explains the UAC prompt instead of asking for a sudo
+  password on Windows, and disables rotation until the setup is complete. macOS reports the platform
+  as unsupported instead of the old Linux-only message.
+- 2026-11-16 — Clean-slate reset now saves conversations before it wipes. The dialog exports every
+  session through `experimental.session.export` into `opencode-session-backups` beside the data
+  directory (newest ten kept, outside every wiped path), defaults the save toggle on, and offers
+  "Save now" without wiping. A restore action imports the newest backup through
+  `experimental.session.import`, parents before children, skipping IDs that already exist, then
+  reloads the windows so the restored list appears. `Maintenance` gained `backup`/`restore`, with
+  `MaintenanceBackup` and `MaintenanceRestore` on the RPC surface.
+- 2026-11-16 — Release builds no longer fail the Console free tier with "OpenCode 1.18.0 or newer is
+  required to use the free tier". The Console reads the version from the `User-Agent` and refuses
+  free-tier inference to anything older than 1.18.0, so the fork's own `0.x` release stamp read as too
+  old. Console-facing requests (the provider client and model requests to the `opencode` provider) now
+  advertise the upstream base version through `App.consoleUseragent`; everything else keeps the real
+  product version. Verified with the source CLI stamped `OPENCODE_VERSION=0.1.0`: a free-model prompt
+  answers instead of returning the version error.
+- 2026-11-16 — Desktop branding reached the splash and Linux window identity. The first-launch splash
+  now draws the TekuCode wordmark instead of upstream's, the idle splash and server-connect screen use
+  the TC monogram, and the glyph data lives in `packages/ui/src/typography/wordmark/glyphs.ts` for the
+  wordmark and `Logo`. Packaged builds also ship `resources/icons` beside the asar (the window icon path
+  pointed inside it before), set the Linux desktop name explicitly, and publish a user-level
+  `ai.opencode.desktop*.desktop` entry with hicolor icons so an AppImage gets the TC icon in the
+  taskbar instead of the compositor's fallback.

@@ -29,6 +29,20 @@ describe("draft store", () => {
     expect(database.db.all(sql`SELECT key FROM document`)).toEqual([])
   })
 
+  test("clearAll drops documents, blobs and queued writes", () => {
+    const database = openDatabase(":memory:")
+    const drafts = createDraftStore(database.db)
+    const blob = drafts.putBlob(new Uint8Array([1, 2, 3]))
+    drafts.set("a:draft:prompt", JSON.stringify({ parts: [{ blob: { id: blob } }] }))
+    drafts.set("b:draft:prompt", "{}")
+    drafts.clearAll()
+    expect(drafts.get("a:draft:prompt")).toBeNull()
+    expect(drafts.getBlob(blob)).toBeNull()
+    drafts.flush()
+    expect(database.db.all(sql`SELECT key FROM document`)).toEqual([])
+    expect(database.db.all(sql`SELECT id FROM blob`)).toEqual([])
+  })
+
   test("stores blobs by content hash and collects unreferenced ones shortly after open", async () => {
     const database = openDatabase(":memory:")
     const first = createDraftStore(database.db)

@@ -67,6 +67,11 @@ export function make(filename: string, onError?: (error: unknown) => void) {
     db: database.db,
     state,
     drafts,
+    /** Drops renderer state, drafts and attachments, keeping migrations and plugin enable state. */
+    clearUserData() {
+      state.clearAll()
+      drafts.clearAll()
+    },
     flush() {
       state.flush()
       drafts.flush()

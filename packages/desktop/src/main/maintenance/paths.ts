@@ -14,6 +14,13 @@ export function maintenancePaths() {
   const cacheHome = process.env.XDG_CACHE_HOME ?? join(home, ".cache")
   const stateHome = process.env.XDG_STATE_HOME ?? join(home, ".local", "state")
 
+  // WireGuard configs live beside the app's own settings on Windows, where `~/.config` is not a
+  // directory anyone browses; Linux keeps the path the wiper script already documents.
+  const wireguard =
+    process.platform === "win32"
+      ? join(app.getPath("appData"), "opencode", "protonvpn-wg")
+      : join(configHome, "protonvpn-wg")
+
   return {
     home,
     config: join(configHome, "opencode"),
@@ -22,7 +29,10 @@ export function maintenancePaths() {
     state: join(stateHome, "opencode"),
     legacy: join(home, ".opencode"),
     backups: join(dataHome, "opencode-backups"),
-    wireguard: join(configHome, "protonvpn-wg"),
+    // Conversation exports survive every wipe: they sit beside the data directory, not inside it, so the
+    // reclaimed state can never take them with it.
+    sessionBackups: join(dataHome, "opencode-session-backups"),
+    wireguard,
     mainDatabase: join(dataHome, "opencode", "opencode.db"),
     localDatabase: join(dataHome, "opencode", "opencode-local.db"),
     draftsDatabase: join(app.getPath("userData"), "drafts.sqlite"),

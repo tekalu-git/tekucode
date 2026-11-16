@@ -107,6 +107,14 @@ export function createDraftStore(
       // SAFETY: node:sqlite allocates a dedicated ArrayBuffer per BLOB column value.
       return data ? (data as Uint8Array<ArrayBuffer>) : null
     },
+    /** Drops every draft, every attachment and every queued write; used by the clean-slate reset. */
+    clearAll() {
+      writer.drop(() => true)
+      db.transaction(() => {
+        db.delete(document).run()
+        db.delete(blobs).run()
+      })
+    },
     flush: writer.flush,
     close() {
       // The final flush below collects nothing: the scan walks every document and can wait for the next launch.

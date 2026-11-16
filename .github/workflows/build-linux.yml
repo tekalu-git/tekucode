@@ -1,0 +1,133 @@
+name: build-linux
+
+# Build unsigned Linux desktop packages on a GitHub-hosted Ubuntu runner.
+# Builds the baseline CLI separately, then packages the Electron desktop app
+# as AppImage, deb, and rpm using the repository's electron-builder config.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version stamped into the app and bundled CLI
+        required: true
+        default: "0.1.0"
+      upload_to_release:
+        description: Attach packages to the GitHub Release matching the version tag
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: build-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      OPENCODE_TARGET: linux-x64
+      VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Install Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential fakeroot rpm ruby ruby-dev squashfs-tools
+          sudo gem install --no-document fpm
+
+      # The desktop bundles the baseline CLI, not a host-optimized binary.
+      - name: Build CLI
+        working-directory: packages/cli
+        env:
+          OPENCODE_TARGET: linux-x64-baseline
+        run: |
+          version="${VERSION#v}"
+          OPENCODE_CHANNEL=latest OPENCODE_VERSION="$version" bun run build
+
+      - name: Build desktop
+        working-directory: packages/desktop
+        run: |
+          version="${VERSION#v}"
+          OPENCODE_CHANNEL=prod OPENCODE_VERSION="$version" NODE_OPTIONS=--max-old-space-size=4096 bun run build
+
+      - name: Pack Linux packages
+        working-directory: packages/desktop
+        timeout-minutes: 35
+        run: |
+          version="${VERSION#v}"
+          OPENCODE_CHANNEL=prod OPENCODE_VERSION="$version" bun run pack
+
+      - name: Verify packages
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          artifacts=(dist/desktop/*.AppImage dist/desktop/*.deb dist/desktop/*.rpm)
+          if [ "${#artifacts[@]}" -ne 3 ]; then
+            printf 'Expected exactly 3 Linux packages, found %s\n' "${#artifacts[@]}"
+            printf '%s\n' "${artifacts[@]}"
+            exit 1
+          fi
+
+          appimage=(dist/desktop/*.AppImage)
+          deb=(dist/desktop/*.deb)
+          rpm=(dist/desktop/*.rpm)
+
+          test -s "${appimage[0]}"
+          test -s "${deb[0]}"
+          test -s "${rpm[0]}"
+
+          file "${appimage[0]}"
+          dpkg-deb --info "${deb[0]}"
+          rpm -qp --info "${rpm[0]}"
+
+          # Verify that the separately built CLI is executable and reports the release version.
+          cli=packages/cli/dist/cli-linux-x64-baseline/bin/opencode
+          test -x "$cli"
+          "$cli" --version
+
+          ls -lh "${artifacts[@]}"
+
+      - name: Checksums
+        run: |
+          cd dist/desktop
+          sha256sum *.AppImage *.deb *.rpm > SHA256SUMS-linux-x64.txt
+          cat SHA256SUMS-linux-x64.txt
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: desktop-linux-x64
+          path: |
+            dist/desktop/*.AppImage
+            dist/desktop/*.deb
+            dist/desktop/*.rpm
+            dist/desktop/SHA256SUMS-linux-x64.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach to release
+        if: github.event_name == 'push' || inputs.upload_to_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${VERSION#v}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "TekuCode ${VERSION#v}" --generate-notes
+          gh release upload "$tag" \
+            dist/desktop/*.AppImage \
+            dist/desktop/*.deb \
+            dist/desktop/*.rpm \
+            dist/desktop/SHA256SUMS-linux-x64.txt \
+            --repo "$GITHUB_REPOSITORY" --clobber

@@ -3,13 +3,14 @@
 import { createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createSimpleContext } from "../context/helper"
-import oc2ThemeJson from "./themes/oc-2.json"
+import grassThemeJson from "./themes/grass.json"
 import { resolveThemeVariant, themeToCss } from "./resolve"
 import { resolveThemeVariantV2, themeV2ToCss } from "./v2/resolve"
 import type { DesktopTheme } from "./types"
 import {
   createThemeState,
   DEFAULT_THEME_ID,
+  migrateThemeId,
   parseColorScheme,
   selectColorScheme,
   selectMode,
@@ -27,6 +28,7 @@ export type { ColorScheme } from "./machine"
 
 const STORAGE_KEYS = {
   THEME_ID: "opencode-theme-id",
+  THEME_DEFAULT_MIGRATED: "opencode-theme-default-migrated",
   COLOR_SCHEME: "opencode-color-scheme",
   THEME_CSS_LIGHT: "opencode-theme-css-light",
   THEME_CSS_DARK: "opencode-theme-css-dark",
@@ -79,6 +81,7 @@ const names = new Map(
     everforest: "Everforest",
     flexoki: "Flexoki",
     github: "GitHub",
+    grass: "Grass",
     gruvbox: "Gruvbox",
     kanagawa: "Kanagawa",
     "lucent-orng": "Lucent Orng",
@@ -104,9 +107,9 @@ const names = new Map(
   }),
 )
 
-// SAFETY: oc-2.json follows desktop-theme.schema.json; JSON modules only widen its colors to `string`, and
+// SAFETY: grass.json follows desktop-theme.schema.json; JSON modules only widen its colors to `string`, and
 // v2/resolve.test.ts resolves the same file as a DesktopTheme.
-const oc2Theme = oc2ThemeJson as DesktopTheme
+const grassTheme = grassThemeJson as DesktopTheme
 
 // Storage access throws where localStorage is missing or blocked; every caller treats that as no stored value.
 function read(key: string) {
@@ -132,6 +135,18 @@ function drop(key: string) {
 function clear() {
   drop(STORAGE_KEYS.THEME_CSS_LIGHT)
   drop(STORAGE_KEYS.THEME_CSS_DARK)
+}
+
+// oc-2 was the default before grass. An install still on it never chose a theme, so move it to the product default
+// once; every explicit choice stays.
+function migrateThemeDefault() {
+  if (read(STORAGE_KEYS.THEME_DEFAULT_MIGRATED)) return
+
+  const next = migrateThemeId(read(STORAGE_KEYS.THEME_ID), false)
+
+  if (next) write(STORAGE_KEYS.THEME_ID, next)
+
+  write(STORAGE_KEYS.THEME_DEFAULT_MIGRATED, "1")
 }
 
 function ensureThemeStyleElement(): HTMLStyleElement {
@@ -194,11 +209,13 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
     onThemeApplied?: (mode: "light" | "dark", scheme: ColorScheme) => void
   }) => {
     // An id no theme has yet stays selected until `settle`: a registered theme can arrive after startup.
+    migrateThemeDefault()
+
     const initial = createThemeState({
       themeId: read(STORAGE_KEYS.THEME_ID) || props.defaultTheme || DEFAULT_THEME_ID,
       scheme: parseColorScheme(read(STORAGE_KEYS.COLOR_SCHEME)),
       systemMode: getSystemMode(),
-      defaultTheme: oc2Theme,
+      defaultTheme: grassTheme,
       bundled: knownThemes(),
     })
 

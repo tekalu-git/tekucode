@@ -97,6 +97,11 @@ export function createStateStore(db: Database, input: { onError?: (cause: unknow
       writer.drop((row) => row.name === name)
       db.delete(state).where(eq(state.name, name)).run()
     },
+    /** Drops every namespace and every queued write; used by the clean-slate reset. */
+    clearAll() {
+      writer.drop(() => true)
+      db.delete(state).run()
+    },
     flush: writer.flush,
     close: writer.close,
   }

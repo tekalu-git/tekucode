@@ -9,7 +9,15 @@ export const MaintenanceConfig = Schema.Struct({
   file: Schema.String,
 })
 
-export const maintenanceSteps = ["vpn", "stop", "snapshot", "wipe", "restore", "start"] as const
+export const MaintenancePlatform = Schema.Literals(["linux", "win32", "darwin", "other"])
+
+export const MaintenanceWireguard = Schema.Struct({
+  installed: Schema.Boolean,
+  executable: Schema.optionalKey(Schema.String),
+  configDir: Schema.String,
+})
+
+export const maintenanceSteps = ["backup", "vpn", "stop", "snapshot", "wipe", "restore", "start"] as const
 
 export const MaintenanceStep = Schema.Literals(maintenanceSteps)
 
@@ -20,10 +28,22 @@ export const MaintenanceVpn = Schema.Struct({
   ip: Schema.optionalKey(Schema.String),
 })
 
+// One conversation backup written by the reset system, outside every directory a wipe removes.
+export const MaintenanceBackup = Schema.Struct({
+  id: Schema.String,
+  path: Schema.String,
+  /** Epoch millis from the backup manifest. */
+  time: Schema.Number,
+  count: Schema.Number,
+})
+
 export const MaintenanceStatus = Schema.Struct({
   supported: Schema.Boolean,
+  platform: MaintenancePlatform,
   vpn: MaintenanceVpn,
+  wireguard: MaintenanceWireguard,
   configs: Schema.Array(MaintenanceConfig),
+  backups: Schema.Array(MaintenanceBackup),
 })
 
 export const MaintenanceFailure = Schema.Literals([
@@ -32,6 +52,7 @@ export const MaintenanceFailure = Schema.Literals([
   "invalid-password",
   "elevation-required",
   "missing-config",
+  "missing-wireguard",
   "failed",
 ])
 
@@ -45,24 +66,97 @@ export const MaintenanceResult = Schema.Struct({
   backup: Schema.optionalKey(Schema.String),
 })
 
+export const MaintenanceImport = Schema.Struct({
+  ok: Schema.Boolean,
+  config: Schema.optionalKey(MaintenanceConfig),
+  /** A config with the same interface name already existed and was replaced. */
+  replaced: Schema.optionalKey(Schema.Boolean),
+  reason: Schema.optionalKey(Schema.Literals(["unsupported", "invalid", "failed"])),
+  message: Schema.optionalKey(Schema.String),
+})
+
+export const MaintenanceBackupResult = Schema.Struct({
+  ok: Schema.Boolean,
+  /** Where the backup was written; absent when there was nothing to save. */
+  path: Schema.optionalKey(Schema.String),
+  /** Conversations written. */
+  count: Schema.optionalKey(Schema.Number),
+  /** Conversations that could not be exported. */
+  failed: Schema.optionalKey(Schema.Number),
+  reason: Schema.optionalKey(Schema.Literals(["busy", "unsupported", "failed"])),
+  message: Schema.optionalKey(Schema.String),
+})
+
+export const MaintenanceRestoreResult = Schema.Struct({
+  ok: Schema.Boolean,
+  path: Schema.optionalKey(Schema.String),
+  imported: Schema.optionalKey(Schema.Number),
+  /** Conversations that were already present. */
+  skipped: Schema.optionalKey(Schema.Number),
+  failed: Schema.optionalKey(Schema.Number),
+  reason: Schema.optionalKey(Schema.Literals(["busy", "unsupported", "missing", "failed"])),
+  message: Schema.optionalKey(Schema.String),
+})
+
 export const MaintenanceStatusRpc = Rpc.make("MaintenanceStatus", { success: MaintenanceStatus })
+
+export const MaintenanceImportRpc = Rpc.make("MaintenanceImport", {
+  payload: {
+    /** A path from the native picker or a dropped file. */
+    path: Schema.optionalKey(Schema.String),
+    /** The dropped file's name; used when it has no native path. */
+    name: Schema.optionalKey(Schema.String),
+    content: Schema.optionalKey(Schema.String),
+  },
+  success: MaintenanceImport,
+})
+
+export const MaintenanceBackupRpc = Rpc.make("MaintenanceBackup", { success: MaintenanceBackupResult })
+
+export const MaintenanceRestoreRpc = Rpc.make("MaintenanceRestore", {
+  payload: {
+    /** A backup id from the status list; the newest backup when omitted. */
+    id: Schema.optionalKey(Schema.String),
+  },
+  success: MaintenanceRestoreResult,
+})
 
 export const MaintenanceWipeRpc = Rpc.make("MaintenanceWipe", {
   payload: {
     rotate: Schema.Boolean,
     country: Schema.optionalKey(Schema.String),
     password: Schema.optionalKey(Schema.String),
+    /** Export every conversation before the wipe removes them. */
+    backup: Schema.Boolean,
   },
   success: MaintenanceResult,
 })
 
-export const MaintenanceRpcs = RpcGroup.make(MaintenanceStatusRpc, MaintenanceWipeRpc)
+export const MaintenanceRpcs = RpcGroup.make(
+  MaintenanceStatusRpc,
+  MaintenanceImportRpc,
+  MaintenanceBackupRpc,
+  MaintenanceRestoreRpc,
+  MaintenanceWipeRpc,
+)
 
 export type MaintenanceConfig = Schema.Schema.Type<typeof MaintenanceConfig>
+
+export type MaintenancePlatform = Schema.Schema.Type<typeof MaintenancePlatform>
+
+export type MaintenanceWireguard = Schema.Schema.Type<typeof MaintenanceWireguard>
 
 export type MaintenanceStatus = Schema.Schema.Type<typeof MaintenanceStatus>
 
 export type MaintenanceResult = Schema.Schema.Type<typeof MaintenanceResult>
+
+export type MaintenanceImport = Schema.Schema.Type<typeof MaintenanceImport>
+
+export type MaintenanceBackup = Schema.Schema.Type<typeof MaintenanceBackup>
+
+export type MaintenanceBackupResult = Schema.Schema.Type<typeof MaintenanceBackupResult>
+
+export type MaintenanceRestoreResult = Schema.Schema.Type<typeof MaintenanceRestoreResult>
 
 export type MaintenanceStep = Schema.Schema.Type<typeof MaintenanceStep>
 

@@ -22,6 +22,9 @@ export const api: ElectronAPI = {
   reconnectService: (signal) => cancellable("AppReconnectService", undefined, signal),
   onSidecarChanged: (cb) => listen("SidecarChanged", (event) => cb({ url: event.url })),
   maintenanceStatus: () => invoke("MaintenanceStatus"),
+  maintenanceImport: (input) => invoke("MaintenanceImport", input),
+  maintenanceBackup: () => invoke("MaintenanceBackup"),
+  maintenanceRestore: (input) => invoke("MaintenanceRestore", input),
   maintenanceWipe: (options) => invoke("MaintenanceWipe", options),
   onMaintenanceProgress: (cb) =>
     listen("MaintenanceProgress", (event) =>
@@ -32,6 +35,9 @@ export const api: ElectronAPI = {
   isFirstLaunchOnboardingPending: () => invoke("AppIsFirstLaunchOnboardingPending"),
   finishFirstLaunchOnboarding: (createDefaultProject) =>
     invoke("AppFinishFirstLaunchOnboarding", { createDefaultProject }),
+  isOnboardingTourPending: () => invoke("AppIsOnboardingTourPending"),
+  finishOnboardingTour: () => send("AppFinishOnboardingTour"),
+  resetOnboardingTour: () => send("AppResetOnboardingTour"),
   checkAppExists: (appName) => invoke("AppCheckAppExists", { appName }),
   resolveAppPath: (appName) => invoke("AppResolveAppPath", { appName }),
   getStorageSnapshot: () => window.electron.storageSnapshot,

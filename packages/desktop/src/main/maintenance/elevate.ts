@@ -10,6 +10,12 @@ export type ElevatedResult =
 
 type Run = { readonly code: number | null; readonly stdout: string; readonly stderr: string; readonly spawnError?: string }
 
+/** `ERROR_CANCELLED`: the user dismissed the UAC prompt. Locale-independent. */
+const ELEVATION_CANCELLED = 1223
+
+/** Printed by the launcher when `Start-Process -Verb RunAs` itself fails, whatever the system language. */
+const ELEVATION_MARKER = "TEKUCODE_UAC_CANCELLED"
+
 /**
  * Runs a root-only shell script once. A password typed in the app goes through `sudo -S` on stdin and
  * is never written anywhere; without one, a cached sudo timestamp is tried first and a polkit prompt
@@ -43,6 +49,69 @@ export async function runElevated(
     ok: false,
     reason: "elevation-required",
     message: polkit.spawnError ?? tail(polkit.stderr) ?? "Administrator permission was not granted",
+  }
+}
+
+/**
+ * Windows has no sudo. WireGuard's tunnel commands need administrator rights, so the script is
+ * handed to an elevated `powershell.exe` through the UAC prompt; the outer process only reports the
+ * inner exit code. Cancel answers as `elevation-required` on every system language.
+ */
+export async function runElevatedPowerShell(script: string): Promise<ElevatedResult> {
+  const inner = encodePowerShell(script)
+
+  const launcher = [
+    "$ErrorActionPreference = 'Stop'",
+    "try {",
+    `  $process = Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile','-NonInteractive','-EncodedCommand','${inner}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden`,
+    "} catch {",
+    `  Write-Output '${ELEVATION_MARKER}'`,
+    `  exit ${ELEVATION_CANCELLED}`,
+    "}",
+    "exit $process.ExitCode",
+  ].join("\n")
+
+  const result = await run(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodePowerShell(launcher)],
+    undefined,
+    180_000,
+  )
+
+  return classifyWindows(result)
+}
+
+/** Runs a read-only PowerShell script in the current security context. */
+export async function runPowerShell(script: string): Promise<ElevatedResult> {
+  const result = await run(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodePowerShell(script)],
+    undefined,
+    30_000,
+  )
+
+  return classifyWindows(result)
+}
+
+/** PowerShell reads `-EncodedCommand` as UTF-16LE base64, which sidesteps cmd quoting entirely. */
+function encodePowerShell(script: string) {
+  return Buffer.from(script, "utf16le").toString("base64")
+}
+
+function classifyWindows(result: Run): ElevatedResult {
+  if (result.code === 0) return { ok: true, stdout: result.stdout }
+
+  if (result.code === ELEVATION_CANCELLED || result.stdout.includes(ELEVATION_MARKER))
+    return { ok: false, reason: "elevation-required", message: "Administrator permission was not granted" }
+
+  if (result.spawnError) return { ok: false, reason: "elevation-required", message: result.spawnError }
+
+  if (result.code === null) return { ok: false, reason: "failed", message: "The command timed out" }
+
+  return {
+    ok: false,
+    reason: "failed",
+    message: tail(result.stderr) ?? `The command failed with exit code ${result.code}`,
   }
 }
 

@@ -56,6 +56,9 @@ export function createDesktopPlatform(api: ElectronAPI, windowState: DesktopWind
     },
     maintenance: {
       status: () => api.maintenanceStatus(),
+      importConfig: (input) => api.maintenanceImport(input),
+      backup: () => api.maintenanceBackup(),
+      restore: (input) => api.maintenanceRestore(input ?? {}),
       wipe: (options) => api.maintenanceWipe(options),
       onProgress: (callback) => api.onMaintenanceProgress(callback),
     },

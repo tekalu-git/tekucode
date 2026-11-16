@@ -24,6 +24,9 @@ export function configureApplication() {
 
   app.setName(APP_NAME)
   app.setAppUserModelId(APP_ID)
+  // Without this, Electron advertises a slug of the app name as the window's Wayland app id, which
+  // matches no installed `.desktop` file; see desktop-entry.ts.
+  if (process.platform === "linux") app.setDesktopName(`${APP_ID}.desktop`)
   app.commandLine.appendSwitch("proxy-bypass-list", "<-loopback>")
   const features = app.commandLine.getSwitchValue("enable-features")
   app.commandLine.appendSwitch("enable-features", features ? `${jsCallStackFeature},${features}` : jsCallStackFeature)

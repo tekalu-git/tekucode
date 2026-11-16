@@ -21,7 +21,7 @@ export interface TorServiceInterface {
   readonly sendCommand: (command: string) => Effect.Effect<string>
 }
 
-export const TorService = Context.Service<TorServiceInterface>()("@opencode/TorService")
+export class TorService extends Context.Service<TorService, TorServiceInterface>()("@opencode/TorService") {}
 
 export const TorServiceLive = Layer.effect(
   TorService,

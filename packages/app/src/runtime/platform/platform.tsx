@@ -39,29 +39,91 @@ export type MaintenanceConfig = {
   file: string
 }
 
+/** One conversation backup the reset system wrote outside the wiped directories. */
+export type MaintenanceBackupInfo = {
+  id: string
+  path: string
+  time: number
+  count: number
+}
+
+export type MaintenancePlatform = "linux" | "win32" | "darwin" | "other"
+
+export type MaintenanceWireguard = {
+  installed: boolean
+  executable?: string
+  configDir: string
+}
+
 export type MaintenanceStatus = {
   supported: boolean
+  platform: MaintenancePlatform
   vpn: {
     connected: boolean
     country?: string
     interface?: string
     ip?: string
   }
+  wireguard: MaintenanceWireguard
   configs: readonly MaintenanceConfig[]
+  backups: readonly MaintenanceBackupInfo[]
 }
 
 export type MaintenanceResult = {
   ok: boolean
   wiped: boolean
-  reason?: "busy" | "unsupported" | "invalid-password" | "elevation-required" | "missing-config" | "failed"
+  reason?:
+    | "busy"
+    | "unsupported"
+    | "invalid-password"
+    | "elevation-required"
+    | "missing-config"
+    | "missing-wireguard"
+    | "failed"
   message?: string
   ip?: string
   backup?: string
 }
 
+export type MaintenanceImportInput = {
+  path?: string
+  name?: string
+  content?: string
+}
+
+export type MaintenanceImportResult = {
+  ok: boolean
+  config?: MaintenanceConfig
+  replaced?: boolean
+  reason?: "unsupported" | "invalid" | "failed"
+  message?: string
+}
+
+export type MaintenanceBackupResult = {
+  ok: boolean
+  path?: string
+  count?: number
+  failed?: number
+  reason?: "busy" | "unsupported" | "failed"
+  message?: string
+}
+
+export type MaintenanceRestoreResult = {
+  ok: boolean
+  path?: string
+  imported?: number
+  skipped?: number
+  failed?: number
+  reason?: "busy" | "unsupported" | "missing" | "failed"
+  message?: string
+}
+
 export type MaintenanceBridge = {
   status(): Promise<MaintenanceStatus>
-  wipe(options: { rotate: boolean; country?: string; password?: string }): Promise<MaintenanceResult>
+  importConfig(input: MaintenanceImportInput): Promise<MaintenanceImportResult>
+  backup(): Promise<MaintenanceBackupResult>
+  restore(input?: { id?: string }): Promise<MaintenanceRestoreResult>
+  wipe(options: { rotate: boolean; country?: string; password?: string; backup: boolean }): Promise<MaintenanceResult>
   onProgress(cb: (progress: MaintenanceProgress) => void): () => void
 }
 

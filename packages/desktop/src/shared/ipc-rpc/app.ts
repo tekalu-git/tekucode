@@ -25,6 +25,14 @@ export const AppFinishFirstLaunchOnboarding = Rpc.make("AppFinishFirstLaunchOnbo
   success: Schema.NullOr(Schema.String),
 })
 
+export const AppIsOnboardingTourPending = Rpc.make("AppIsOnboardingTourPending", {
+  success: Schema.Boolean,
+})
+
+export const AppFinishOnboardingTour = Rpc.make("AppFinishOnboardingTour")
+
+export const AppResetOnboardingTour = Rpc.make("AppResetOnboardingTour")
+
 export const AppCheckAppExists = Rpc.make("AppCheckAppExists", {
   payload: { appName: Schema.String },
   success: Schema.Boolean,
@@ -76,6 +84,9 @@ export const AppRpcs = RpcGroup.make(
   AppAcknowledgeDeepLinks,
   AppIsFirstLaunchOnboardingPending,
   AppFinishFirstLaunchOnboarding,
+  AppIsOnboardingTourPending,
+  AppFinishOnboardingTour,
+  AppResetOnboardingTour,
   AppCheckAppExists,
   AppResolveAppPath,
   AppSetBackgroundColor,

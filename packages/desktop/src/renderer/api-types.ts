@@ -21,6 +21,9 @@ export type ElectronAPI = {
   acknowledgeDeepLinks(attempt: number): void
   isFirstLaunchOnboardingPending(): Promise<boolean>
   finishFirstLaunchOnboarding(createDefaultProject: boolean): Promise<string | null>
+  isOnboardingTourPending(): Promise<boolean>
+  finishOnboardingTour(): void
+  resetOnboardingTour(): void
   checkAppExists(appName: string): Promise<boolean>
   resolveAppPath(appName: string): Promise<string | null>
   /** The namespaces the preload read before the page ran; `createDesktopStorage` serves each first read from it. */
@@ -83,8 +86,18 @@ export type ElectronAPI = {
   recordFatalRendererError(error: FatalRendererError): Promise<void>
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
   maintenanceStatus(): Promise<MaintenanceStatusData>
+  maintenanceImport(input: MaintenanceImportInput): Promise<MaintenanceImportData>
+  maintenanceBackup(): Promise<MaintenanceBackupData>
+  maintenanceRestore(input: MaintenanceRestoreInput): Promise<MaintenanceRestoreData>
   maintenanceWipe(options: MaintenanceWipeOptions): Promise<MaintenanceResultData>
   onMaintenanceProgress(cb: (progress: MaintenanceProgressData) => void): () => void
+}
+
+export type MaintenanceBackupInfoData = {
+  id: string
+  path: string
+  time: number
+  count: number
 }
 
 export type MaintenanceConfigData = {
@@ -95,25 +108,77 @@ export type MaintenanceConfigData = {
 
 export type MaintenanceStatusData = {
   supported: boolean
+  platform: "linux" | "win32" | "darwin" | "other"
   vpn: {
     connected: boolean
     country?: string
     interface?: string
     ip?: string
   }
+  wireguard: {
+    installed: boolean
+    executable?: string
+    configDir: string
+  }
   configs: readonly MaintenanceConfigData[]
+  backups: readonly MaintenanceBackupInfoData[]
 }
 
 export type MaintenanceWipeOptions = {
   rotate: boolean
   country?: string
   password?: string
+  backup: boolean
+}
+
+export type MaintenanceBackupData = {
+  ok: boolean
+  path?: string
+  count?: number
+  failed?: number
+  reason?: "busy" | "unsupported" | "failed"
+  message?: string
+}
+
+export type MaintenanceRestoreInput = {
+  id?: string
+}
+
+export type MaintenanceRestoreData = {
+  ok: boolean
+  path?: string
+  imported?: number
+  skipped?: number
+  failed?: number
+  reason?: "busy" | "unsupported" | "missing" | "failed"
+  message?: string
+}
+
+export type MaintenanceImportInput = {
+  path?: string
+  name?: string
+  content?: string
+}
+
+export type MaintenanceImportData = {
+  ok: boolean
+  config?: MaintenanceConfigData
+  replaced?: boolean
+  reason?: "unsupported" | "invalid" | "failed"
+  message?: string
 }
 
 export type MaintenanceResultData = {
   ok: boolean
   wiped: boolean
-  reason?: "busy" | "unsupported" | "invalid-password" | "elevation-required" | "missing-config" | "failed"
+  reason?:
+    | "busy"
+    | "unsupported"
+    | "invalid-password"
+    | "elevation-required"
+    | "missing-config"
+    | "missing-wireguard"
+    | "failed"
   message?: string
   ip?: string
   backup?: string

@@ -18,6 +18,7 @@ const countries = {
 } satisfies Record<string, Key>
 
 const steps = {
+  backup: "maintenance.step.backup",
   vpn: "maintenance.step.vpn",
   stop: "maintenance.step.stop",
   snapshot: "maintenance.step.snapshot",

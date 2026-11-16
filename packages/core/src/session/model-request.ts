@@ -327,7 +327,7 @@ export const layer = Layer.effect(
           "x-session-affinity": affinity,
           "X-Session-Id": affinity,
           ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
-          "User-Agent": App.useragent(app),
+          "User-Agent": model.model.provider === "opencode" ? App.consoleUseragent(app) : App.useragent(app),
           "x-opencode-project": session.projectID,
           "x-opencode-session": affinity,
           "x-opencode-client": app.name,

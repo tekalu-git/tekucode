@@ -1,6 +1,5 @@
 import { Context, Effect, Layer } from "effect"
-import { ChildProcess } from "effect/process"
-import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
+import { spawn } from "node:child_process"
 import path from "node:path"
 import fs from "node:fs/promises"
 
@@ -8,13 +7,11 @@ export interface LauncherServiceInterface {
   readonly relaunch: (params: { dbPath: string; fingerprintPath: string }) => Effect.Effect<void>
 }
 
-export const LauncherService = Context.Service<LauncherServiceInterface>()("@opencode/LauncherService")
+export class LauncherService extends Context.Service<LauncherService, LauncherServiceInterface>()("@opencode/LauncherService") {}
 
 export const LauncherServiceLive = Layer.effect(
   LauncherService,
   Effect.gen(function* () {
-    const spawner = yield* ChildProcessSpawner
-
     const killProcesses = Effect.fn("LauncherService.killProcesses")(function* () {
       // Skip killing processes to avoid accidentally killing self
       // User can restart manually after reset
@@ -48,19 +45,19 @@ export const LauncherServiceLive = Layer.effect(
       const scriptPath = process.argv[1] // opencode script
 
       if (scriptPath && scriptPath.endsWith(".js")) {
-        yield* spawner.spawn(
-          ChildProcess.make(opencodePath, [scriptPath], {
-            extendEnv: true,
-            stdin: "ignore",
-            env: {
-              ...process.env,
-              OPENCODE_FRESH_START: "1",
-              OPENCODE_FINGERPRINT_PATH: fingerprintPath,
-            },
-          }),
-        ).pipe(Effect.catchCause(() => Effect.void))
+        // Detached so the reset command can exit without taking the fresh app down with it.
+        const child = spawn(opencodePath, [scriptPath], {
+          detached: true,
+          stdio: "ignore",
+          env: {
+            ...process.env,
+            OPENCODE_FRESH_START: "1",
+            OPENCODE_FINGERPRINT_PATH: fingerprintPath,
+          },
+        })
 
-        // Don't wait for the process, just detach
+        child.unref()
+
         yield* Effect.logInfo("Launched fresh OpenCode process")
       } else {
         yield* Effect.logWarning("Could not determine launch path, skipping relaunch")

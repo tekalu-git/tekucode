@@ -12,7 +12,6 @@ import {
   HttpClientResponse,
   HttpMethod,
 } from "effect/http"
-import { SocksProxyAgent } from "socks-proxy-agent"
 import { ProxyAgent, setGlobalDispatcher } from "undici"
 import "./tor-http-client"
 import { App } from "../../app.js"
@@ -206,7 +205,7 @@ export const OpencodePlugin = define<
     const client = yield* HttpClient.HttpClient
     // Every request here goes to the Console, which reads the User-Agent to tell which OpenCode a member runs
     // and whether it evaluates the policies it is being sent.
-    const http = HttpClient.mapRequest(client, HttpClientRequest.setHeader("User-Agent", App.useragent(ctx.app)))
+    const http = HttpClient.mapRequest(client, HttpClientRequest.setHeader("User-Agent", App.consoleUseragent(ctx.app)))
     const config = yield* Config.Service
     const flags = yield* Flag.Service
     const discovery = yield* InstructionDiscovery.Service

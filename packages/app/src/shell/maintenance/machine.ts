@@ -1,8 +1,13 @@
-import type { MaintenanceProgress, MaintenanceResult, MaintenanceStatus } from "@/runtime/platform/platform"
+import type {
+  MaintenanceImportResult,
+  MaintenanceProgress,
+  MaintenanceResult,
+  MaintenanceStatus,
+} from "@/runtime/platform/platform"
 
 export type MaintenanceFailure = NonNullable<MaintenanceResult["reason"]>
 
-export const maintenanceSteps = ["vpn", "stop", "snapshot", "wipe", "restore", "start"] as const
+export const maintenanceSteps = ["backup", "vpn", "stop", "snapshot", "wipe", "restore", "start"] as const
 
 export type MaintenanceStep = (typeof maintenanceSteps)[number]
 
@@ -12,6 +17,7 @@ export type StepState = {
 }
 
 export type Form = {
+  readonly backup: boolean
   readonly rotate: boolean
   readonly country: string
   readonly password: string
@@ -50,7 +56,7 @@ export type Event =
 export function initialState(status?: MaintenanceStatus): State {
   const country = status?.vpn.country ?? status?.configs[0]?.id ?? "nl"
 
-  return { status: "idle", form: { rotate: true, country, password: "" } }
+  return { status: "idle", form: { backup: true, rotate: true, country, password: "" } }
 }
 
 export function transition(state: State, event: Event): State {
@@ -127,5 +133,18 @@ export function failureKey(reason: MaintenanceFailure | undefined) {
 
   if (reason === "missing-config") return "maintenance.dialog.missingConfig" as const
 
+  if (reason === "missing-wireguard") return "maintenance.dialog.missingWireguard" as const
+
   return "maintenance.dialog.failed" as const
+}
+
+export type ImportFailureReason = MaintenanceImportResult["reason"]
+
+/** Copy for a config the main process refused to add. */
+export function importFailureKey(reason: ImportFailureReason) {
+  if (reason === "unsupported") return "maintenance.dialog.import.unsupported" as const
+
+  if (reason === "invalid") return "maintenance.dialog.import.invalid" as const
+
+  return "maintenance.dialog.import.failed" as const
 }
