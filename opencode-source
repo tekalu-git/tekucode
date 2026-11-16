@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# opencode - Run OpenCode from source with fingerprint support
+# TekuCode - Run the CLI directly from source
 # This wrapper runs the CLI from source so it picks up all changes
 
 SOURCE_DIR="/home/tekalu/Documents/Projects/TekuCode/opencode"

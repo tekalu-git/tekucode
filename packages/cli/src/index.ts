@@ -18,10 +18,6 @@ import { EffectFlock } from "@opencode/util/effect-flock"
 import { Heap } from "./heap"
 import { CpuProfile } from "./cpu-profile"
 import { ShutdownDeadline } from "./shutdown-deadline"
-import { FingerprintServiceLive } from "./commands/handlers/debug/quota-bypass/fingerprint"
-import { TorServiceLive } from "./commands/handlers/debug/quota-bypass/tor"
-import { DatabaseWiperLive } from "./commands/handlers/debug/quota-bypass/database-wiper"
-import { LauncherServiceLive } from "./commands/handlers/debug/quota-bypass/launcher"
 
 // Keep requests to the local service off any proxy. Bun reads lowercase `no_proxy` alone whenever it is set, so both
 // spellings get the same merged list.
@@ -64,7 +60,6 @@ const Handlers = Runtime.handlers(Commands, {
     config: () => import("./commands/handlers/debug/config"),
     "heap-dump": () => import("./commands/handlers/debug/heap-dump"),
     paths: () => import("./commands/handlers/debug/paths"),
-    "reset-quota": () => import("./commands/handlers/debug/reset-quota"),
   },
   mcp: {
     list: () => import("./commands/handlers/mcp/list"),
@@ -161,10 +156,6 @@ Effect.gen(function* () {
       channel: OPENCODE_CHANNEL,
     }),
   ),
-  Effect.provide(FingerprintServiceLive),
-  Effect.provide(TorServiceLive),
-  Effect.provide(DatabaseWiperLive),
-  Effect.provide(LauncherServiceLive),
   Effect.provide(NodeServices.layer),
   Effect.scoped,
   // runMain's default reporter logs the fatal cause to stdout. Write it to stderr instead: the
