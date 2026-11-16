@@ -28,6 +28,21 @@ export const MaintenanceVpn = Schema.Struct({
   ip: Schema.optionalKey(Schema.String),
 })
 
+/**
+ * What a conversation backup keeps. Every kind defaults to on, so a caller that sends nothing gets the
+ * full transcript. Session and message IDs are not optional: the import endpoint keys rows by them.
+ */
+export const MaintenanceBackupOptions = Schema.Struct({
+  /** Tool results and shell output. Off replaces them with a short placeholder. */
+  toolOutput: Schema.optionalKey(Schema.Boolean),
+  /** Model reasoning parts. Off drops them. */
+  reasoning: Schema.optionalKey(Schema.Boolean),
+  /** Inline attachment bytes. Off keeps the reference but not the data. */
+  attachments: Schema.optionalKey(Schema.Boolean),
+  /** Session titles, custom metadata and provider replay data. Off drops them. */
+  metadata: Schema.optionalKey(Schema.Boolean),
+})
+
 // One conversation backup written by the reset system, outside every directory a wipe removes.
 export const MaintenanceBackup = Schema.Struct({
   id: Schema.String,
@@ -111,7 +126,10 @@ export const MaintenanceImportRpc = Rpc.make("MaintenanceImport", {
   success: MaintenanceImport,
 })
 
-export const MaintenanceBackupRpc = Rpc.make("MaintenanceBackup", { success: MaintenanceBackupResult })
+export const MaintenanceBackupRpc = Rpc.make("MaintenanceBackup", {
+  payload: { options: Schema.optionalKey(MaintenanceBackupOptions) },
+  success: MaintenanceBackupResult,
+})
 
 export const MaintenanceRestoreRpc = Rpc.make("MaintenanceRestore", {
   payload: {
@@ -128,6 +146,8 @@ export const MaintenanceWipeRpc = Rpc.make("MaintenanceWipe", {
     password: Schema.optionalKey(Schema.String),
     /** Export every conversation before the wipe removes them. */
     backup: Schema.Boolean,
+    /** What that export keeps; omitted means the full transcript. */
+    backupOptions: Schema.optionalKey(MaintenanceBackupOptions),
   },
   success: MaintenanceResult,
 })
@@ -161,3 +181,5 @@ export type MaintenanceRestoreResult = Schema.Schema.Type<typeof MaintenanceRest
 export type MaintenanceStep = Schema.Schema.Type<typeof MaintenanceStep>
 
 export type MaintenanceFailure = Schema.Schema.Type<typeof MaintenanceFailure>
+
+export type MaintenanceBackupOptions = Schema.Schema.Type<typeof MaintenanceBackupOptions>

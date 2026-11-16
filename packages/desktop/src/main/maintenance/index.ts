@@ -28,7 +28,7 @@ import {
 } from "./files"
 import { initialState, transition, type Event, type Progress } from "./machine"
 import { maintenancePaths } from "./paths"
-import { exportSessions, listBackups, pruneBackups, restoreSessions } from "./sessions"
+import { exportSessions, listBackups, pruneBackups, restoreSessions, type BackupOptions } from "./sessions"
 import {
   activeTunnel,
   discoverConfigs,
@@ -48,6 +48,8 @@ export type WipeOptions = {
   readonly country?: string
   readonly password?: string
   readonly backup: boolean
+  /** What the pre-wipe export keeps; omitted means the full transcript. */
+  readonly backupOptions?: BackupOptions
 }
 
 /** How many conversation backups stay on disk; a full transcript with inline media is large. */
@@ -71,7 +73,7 @@ export interface Interface {
     readonly content?: string
   }) => Effect.Effect<MaintenanceImport>
   /** Exports every conversation now, without wiping anything. */
-  readonly backup: Effect.Effect<MaintenanceBackupResult>
+  readonly backup: (input: { readonly options?: BackupOptions }) => Effect.Effect<MaintenanceBackupResult>
   /** Imports the conversations of one backup, or the newest one when no id is given. */
   readonly restore: (input: { readonly id?: string }) => Effect.Effect<MaintenanceRestoreResult>
   readonly wipe: (
@@ -103,37 +105,44 @@ export const layer = Layer.effect(
     return Service.of({
       status: status(),
       importConfig: (input) => Effect.promise(() => importWireguardConfig(maintenancePaths(), input)),
-      backup: exclusive<MaintenanceBackupResult>(
-        Effect.gen(function* () {
-          if (!maintenanceSupported())
+      backup: (input) =>
+        exclusive<MaintenanceBackupResult>(
+          Effect.gen(function* () {
+            if (!maintenanceSupported())
+              return {
+                ok: false,
+                reason: "unsupported" as const,
+                message: "Conversation backups are wired for Linux and Windows only",
+              } satisfies MaintenanceBackupResult
+
+            const paths = maintenancePaths()
+            const api = yield* sessionClient(background)
+            const result = yield* Effect.promise(() =>
+              exportSessions(api, paths.sessionBackups, input.options),
+            ).pipe(Effect.exit)
+
+            if (Exit.isFailure(result))
+              return {
+                ok: false,
+                reason: "failed" as const,
+                message: message(Cause.squash(result.cause)),
+              } satisfies MaintenanceBackupResult
+
+            yield* Effect.promise(() => pruneBackups(paths.sessionBackups, backupKeep))
+
             return {
-              ok: false,
-              reason: "unsupported" as const,
-              message: "Conversation backups are wired for Linux and Windows only",
+              ok: true,
+              path: result.value.path,
+              count: result.value.count,
+              failed: result.value.failed,
             } satisfies MaintenanceBackupResult
-
-          const paths = maintenancePaths()
-          const api = yield* sessionClient(background)
-          const result = yield* Effect.promise(() => exportSessions(api, paths.sessionBackups)).pipe(Effect.exit)
-
-          if (Exit.isFailure(result))
-            return {
-              ok: false,
-              reason: "failed" as const,
-              message: message(Cause.squash(result.cause)),
-            } satisfies MaintenanceBackupResult
-
-          yield* Effect.promise(() => pruneBackups(paths.sessionBackups, backupKeep))
-
-          return {
-            ok: true,
-            path: result.value.path,
-            count: result.value.count,
-            failed: result.value.failed,
-          } satisfies MaintenanceBackupResult
-        }),
-        { ok: false, reason: "busy" as const, message: "A reset is already running" } satisfies MaintenanceBackupResult,
-      ),
+          }),
+          {
+            ok: false,
+            reason: "busy" as const,
+            message: "A reset is already running",
+          } satisfies MaintenanceBackupResult,
+        ),
       restore: (input) =>
         exclusive<MaintenanceRestoreResult>(
           Effect.gen(function* () {
@@ -287,7 +296,9 @@ const perform = Effect.fn("Maintenance.wipe")(function* (
   } else {
     const saved = yield* Effect.gen(function* () {
       const api = yield* sessionClient(background)
-      const result = yield* Effect.promise(() => exportSessions(api, paths.sessionBackups))
+      const result = yield* Effect.promise(() =>
+        exportSessions(api, paths.sessionBackups, options.backupOptions),
+      )
       yield* Effect.promise(() => pruneBackups(paths.sessionBackups, backupKeep))
 
       return result

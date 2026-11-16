@@ -23,7 +23,7 @@ export const api: ElectronAPI = {
   onSidecarChanged: (cb) => listen("SidecarChanged", (event) => cb({ url: event.url })),
   maintenanceStatus: () => invoke("MaintenanceStatus"),
   maintenanceImport: (input) => invoke("MaintenanceImport", input),
-  maintenanceBackup: () => invoke("MaintenanceBackup"),
+  maintenanceBackup: (options) => invoke("MaintenanceBackup", { options }),
   maintenanceRestore: (input) => invoke("MaintenanceRestore", input),
   maintenanceWipe: (options) => invoke("MaintenanceWipe", options),
   onMaintenanceProgress: (cb) =>

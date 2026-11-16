@@ -27,6 +27,14 @@ export type SessionBackupClient = {
   }
 }
 
+/** What an export keeps; an omitted kind stays on, so a caller that sends nothing gets the full transcript. */
+export type BackupOptions = {
+  readonly toolOutput?: boolean
+  readonly reasoning?: boolean
+  readonly attachments?: boolean
+  readonly metadata?: boolean
+}
+
 export type ExportResult = {
   path?: string
   count: number
@@ -63,7 +71,11 @@ const isBackupSession = Schema.is(BackupSession)
 const manifestName = "manifest.json"
 
 /** Exports every conversation into a new timestamped folder and returns where it landed. */
-export async function exportSessions(client: SessionBackupClient, root: string): Promise<ExportResult> {
+export async function exportSessions(
+  client: SessionBackupClient,
+  root: string,
+  options: BackupOptions = {},
+): Promise<ExportResult> {
   const path = join(root, `backup-${Date.now()}`)
   await mkdir(path, { recursive: true })
 
@@ -74,7 +86,7 @@ export async function exportSessions(client: SessionBackupClient, root: string):
   for (const sessionID of ids) {
     try {
       const data = await client.experimental.session.export({ sessionID })
-      await writeFile(join(path, `${safeName(sessionID)}.json`), JSON.stringify(data, null, 2))
+      await writeFile(join(path, `${safeName(sessionID)}.json`), JSON.stringify(trimSession(data, options), null, 2))
       count += 1
     } catch (error) {
       failed.push({ id: sessionID, message: error instanceof Error ? error.message : String(error) })
@@ -182,6 +194,105 @@ export function importOrder<T extends { info: { id: string; parentID?: string } 
   }
 
   return ordered
+}
+
+type Json = Record<string, unknown>
+
+const isJson = (value: unknown): value is Json =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+
+const kept = (value: boolean | undefined) => value !== false
+
+/**
+ * Drops the parts of a transcript a backup does not need in order to restore it. Session and message
+ * IDs stay in every case: the import endpoint keys its rows by them, so a backup without them cannot be
+ * replayed. Tool output and reasoning are lossy for the model's next turn, so both stay unless the
+ * caller turns them off; metadata and attachment bytes are safe to drop.
+ */
+export function trimSession(data: SessionBackupData, options: BackupOptions): SessionBackupData {
+  const keep = {
+    toolOutput: kept(options.toolOutput),
+    reasoning: kept(options.reasoning),
+    attachments: kept(options.attachments),
+    metadata: kept(options.metadata),
+  }
+  const copy = structuredClone(data) as unknown as Json
+
+  const info = isJson(copy.info) ? copy.info : undefined
+
+  if (info && !keep.metadata) {
+    delete info.title
+    delete info.metadata
+  }
+
+  for (const message of Array.isArray(copy.messages) ? copy.messages : []) {
+    if (!isJson(message)) continue
+
+    if (!keep.metadata) {
+      delete message.metadata
+      delete message.native
+    }
+
+    if (!keep.attachments) trimAttachments(message)
+
+    if (!keep.toolOutput) trimShell(message)
+    trimContent(message, keep)
+  }
+
+  return copy as unknown as SessionBackupData
+}
+
+/** Inline media is most of a transcript's size; the reference and its name stay, the bytes do not. */
+function trimAttachments(message: Json) {
+  if (!Array.isArray(message.files)) return
+
+  for (const file of message.files) {
+    if (!isJson(file)) continue
+
+    file.data = ""
+    file.source = { type: "inline" }
+  }
+}
+
+function trimShell(message: Json) {
+  if (message.type !== "shell") return
+
+  const output = isJson(message.output) ? message.output : undefined
+
+  if (output && typeof output.output === "string") output.output = "[shell output omitted]"
+}
+
+function trimContent(
+  message: Json,
+  keep: { toolOutput: boolean; reasoning: boolean; metadata: boolean },
+) {
+  if (!Array.isArray(message.content)) return
+
+  const content: unknown[] = []
+
+  for (const part of message.content) {
+    if (!isJson(part)) {
+      content.push(part)
+      continue
+    }
+
+    if (!keep.metadata) delete part.native
+
+    if (part.type === "reasoning" && !keep.reasoning) continue
+
+    if (part.type === "tool" && !keep.toolOutput) {
+      const state = isJson(part.state) ? part.state : undefined
+
+      if (state) {
+        state.content = [{ type: "text", text: "[tool output omitted]" }]
+        delete state.metadata
+      }
+    }
+
+    content.push(part)
+  }
+
+  message.content = content
 }
 
 async function sessionIDs(client: SessionBackupClient) {

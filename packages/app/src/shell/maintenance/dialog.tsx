@@ -32,6 +32,29 @@ import "./maintenance.css"
 
 const WIREGUARD_DOWNLOAD = "https://www.wireguard.com/install/"
 
+/** What a saved conversation keeps. Every kind starts on; the IDs the import needs are not optional. */
+type BackupContents = {
+  toolOutput: boolean
+  reasoning: boolean
+  attachments: boolean
+  metadata: boolean
+}
+
+const keepEverything: BackupContents = {
+  toolOutput: true,
+  reasoning: true,
+  attachments: true,
+  metadata: true,
+}
+
+/** The data-minimizing preset: the transcript's text remains, everything optional is dropped. */
+const keepTextOnly: BackupContents = {
+  toolOutput: false,
+  reasoning: false,
+  attachments: false,
+  metadata: false,
+}
+
 export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
   const dialog = useDialog()
   const platform = usePlatform()
@@ -47,6 +70,7 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
   const [imported, setImported] = createSignal<{ file: string; replaced: boolean }>()
   const [saving, setSaving] = createSignal(false)
   const [saved, setSaved] = createSignal<MaintenanceBackupResult>()
+  const [contents, setContents] = createSignal<BackupContents>(keepEverything)
   const [restoring, setRestoring] = createSignal(false)
   const [restored, setRestored] = createSignal<MaintenanceRestoreResult>()
   const form = () => state().form
@@ -55,6 +79,12 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
 
   const dispatch = (event: Event) => setState((current) => transition(current, event))
   const patch = (value: Partial<Form>) => dispatch({ type: "form.patched", patch: value })
+
+  const setContent = (key: keyof BackupContents, value: boolean) =>
+    setContents((current) => ({ ...current, [key]: value }))
+
+  const textOnly = () =>
+    !contents().toolOutput && !contents().reasoning && !contents().attachments && !contents().metadata
 
   const refreshStatus = () => {
     void maintenance.status().then(
@@ -84,6 +114,8 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
     const current = form()
     const request: Parameters<typeof maintenance.wipe>[0] = { rotate: current.rotate, backup: current.backup }
 
+    if (current.backup) request.backupOptions = contents()
+
     if (current.rotate) request.country = current.country
 
     if (current.password) request.password = current.password
@@ -112,7 +144,7 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
     setSaving(true)
     setSaved(undefined)
 
-    void maintenance.backup().then(
+    void maintenance.backup(contents()).then(
       (result) => {
         setSaving(false)
         setSaved(result)
@@ -198,10 +230,13 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
         setImported({ file: config.file, replaced: result.replaced === true })
 
         // The dialog owns the selection, so the new config becomes the exit immediately.
-        void maintenance.status().then((next) => {
-          setStatus(next)
-          patch({ country: config.id })
-        }, () => undefined)
+        void maintenance.status().then(
+          (next) => {
+            setStatus(next)
+            patch({ country: config.id })
+          },
+          () => undefined,
+        )
       },
       (error: Error) => {
         setImporting(false)
@@ -236,7 +271,10 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
       return
     }
 
-    void file.text().then((content) => applyConfig({ name: file.name, content }), () => undefined)
+    void file.text().then(
+      (content) => applyConfig({ name: file.name, content }),
+      () => undefined,
+    )
   }
 
   const steps = () => {
@@ -263,7 +301,7 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
       : language.t(failureKey(reason))
 
   return (
-    <Dialog fit preventBackdropDismiss={running()}>
+    <Dialog fit containerClass="maintenance-dialog-container" preventBackdropDismiss={running()}>
       <DialogHeader hideClose={running()}>
         <DialogTitleGroup
           title={language.t("maintenance.dialog.title")}
@@ -284,283 +322,358 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
             </Show>
 
             <Show when={supported()}>
-              <div data-slot="maintenance-field">
-                <div data-slot="maintenance-field-label" data-split>
-                  <span>{language.t("maintenance.dialog.backup.toggle")}</span>
-                  <Switch checked={form().backup} onChange={(backup) => patch({ backup })} />
-                </div>
-                <span data-slot="maintenance-field-description">
-                  {language.t("maintenance.dialog.backup.description")}
-                </span>
-                <div data-slot="maintenance-actions">
-                  <Button
-                    variant="outline"
-                    size="small"
-                    disabled={saving() || restoring() || running()}
-                    onClick={saveConversations}
-                  >
-                    {saving()
-                      ? language.t("maintenance.dialog.backup.saving")
-                      : language.t("maintenance.dialog.backup.save")}
-                  </Button>
-                  <Show when={backups().length > 0}>
-                    <Button
-                      variant="ghost"
-                      size="small"
-                      disabled={saving() || restoring() || running()}
-                      onClick={openBackupFolder}
-                    >
-                      {language.t("maintenance.dialog.backup.open")}
-                    </Button>
-                  </Show>
-                </div>
-                <Show when={saving()}>
-                  <span data-slot="maintenance-import-status">
-                    <Loader width={11} height={11} />
-                    {language.t("maintenance.dialog.backup.saving")}
-                  </span>
-                </Show>
-                <Show when={saved()}>
-                  {(result) => {
-                    if (!result().ok)
-                      return (
-                        <div data-slot="maintenance-setup" data-tone="danger" role="alert">
-                          <span data-slot="maintenance-setup-text">
-                            {language.t("maintenance.dialog.backup.failed")}
-                          </span>
-                          <Show when={result().message}>
-                            {(message) => <code data-slot="maintenance-outcome-detail">{message()}</code>}
-                          </Show>
-                        </div>
-                      )
-
-                    const count = result().count ?? 0
-
-                    if (count === 0)
-                      return (
-                        <span data-slot="maintenance-import-status" role="status">
-                          {language.t("maintenance.dialog.backup.empty")}
+              <div data-slot="maintenance-sections">
+                <section data-slot="maintenance-section">
+                  <h3 data-slot="maintenance-section-title">
+                    {language.t("maintenance.dialog.section.conversations")}
+                  </h3>
+                  <div data-slot="maintenance-field">
+                    <div data-slot="maintenance-field-label" data-split>
+                      <span>{language.t("maintenance.dialog.backup.toggle")}</span>
+                      <Switch checked={form().backup} hideLabel onChange={(backup) => patch({ backup })}>
+                        {language.t("maintenance.dialog.backup.toggle")}
+                      </Switch>
+                    </div>
+                    <span data-slot="maintenance-field-description">
+                      {language.t("maintenance.dialog.backup.description")}
+                    </span>
+                    <div data-slot="maintenance-contents">
+                      <div data-slot="maintenance-contents-header">
+                        <span data-slot="maintenance-field-label">
+                          {language.t("maintenance.dialog.backup.contents")}
                         </span>
-                      )
-
-                    return (
-                      <div data-slot="maintenance-result">
-                        <span data-slot="maintenance-import-status" data-tone="success" role="status">
-                          <Icon name="check-small" width={12} height={12} />
-                          {(result().failed ?? 0) > 0
-                            ? language.plural("maintenance.dialog.backup.partial", count, {
-                                failed: String(result().failed),
-                              })
-                            : language.plural("maintenance.dialog.backup.saved", count)}
-                        </span>
-                        <Show when={result().path}>
-                          {(path) => <code data-slot="maintenance-outcome-detail">{path()}</code>}
-                        </Show>
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          disabled={running()}
+                          onClick={() => setContents(textOnly() ? keepEverything : keepTextOnly)}
+                        >
+                          {language.t(
+                            textOnly()
+                              ? "maintenance.dialog.backup.contents.all"
+                              : "maintenance.dialog.backup.contents.textOnly",
+                          )}
+                        </Button>
                       </div>
-                    )
-                  }}
-                </Show>
-              </div>
-
-              <Show when={backups().length > 0}>
-                <div data-slot="maintenance-field">
-                  <span data-slot="maintenance-field-label">{language.t("maintenance.dialog.restore")}</span>
-                  <span data-slot="maintenance-field-description">
-                    {language.t("maintenance.dialog.restore.description")}
-                  </span>
-                  <Show when={backups()[0]}>
-                    {(backup) => (
                       <span data-slot="maintenance-field-description">
-                        {language.plural("maintenance.dialog.restore.last", backup().count, {
-                          time: backupTime(backup().time),
-                        })}
+                        {language.t("maintenance.dialog.backup.contents.description")}
                       </span>
-                    )}
-                  </Show>
-                  <div data-slot="maintenance-actions">
-                    <Button
-                      variant="outline"
-                      size="small"
-                      disabled={saving() || restoring() || running()}
-                      onClick={restoreConversations}
-                    >
-                      {restoring()
-                        ? language.t("maintenance.dialog.restore.restoring")
-                        : language.t("maintenance.dialog.restore.action")}
-                    </Button>
-                  </div>
-                  <Show when={restored()}>
-                    {(result) => {
-                      if (!result().ok)
-                        return (
-                          <div data-slot="maintenance-setup" data-tone="danger" role="alert">
-                            <span data-slot="maintenance-setup-text">
-                              {result().reason === "missing"
-                                ? language.t("maintenance.dialog.restore.none")
-                                : language.t("maintenance.dialog.restore.failed")}
+                      <For
+                        each={
+                          [
+                            ["toolOutput", "maintenance.dialog.backup.contents.toolOutput"],
+                            ["reasoning", "maintenance.dialog.backup.contents.reasoning"],
+                            ["attachments", "maintenance.dialog.backup.contents.attachments"],
+                            ["metadata", "maintenance.dialog.backup.contents.metadata"],
+                          ] as const
+                        }
+                      >
+                        {([key, label]) => (
+                          <div data-slot="maintenance-contents-row">
+                            <div data-slot="maintenance-contents-text">
+                              <span>{language.t(label)}</span>
+                              <span data-slot="maintenance-contents-hint">{language.t(`${label}.description`)}</span>
+                            </div>
+                            <Switch
+                              checked={contents()[key]}
+                              disabled={running()}
+                              hideLabel
+                              onChange={(value) => setContent(key, value)}
+                            >
+                              {language.t(label)}
+                            </Switch>
+                          </div>
+                        )}
+                      </For>
+                      <span data-slot="maintenance-field-description">
+                        {language.t("maintenance.dialog.backup.contents.ids")}
+                      </span>
+                    </div>
+                    <div data-slot="maintenance-actions">
+                      <Button
+                        variant="outline"
+                        size="small"
+                        disabled={saving() || restoring() || running()}
+                        onClick={saveConversations}
+                      >
+                        {saving()
+                          ? language.t("maintenance.dialog.backup.saving")
+                          : language.t("maintenance.dialog.backup.save")}
+                      </Button>
+                      <Show when={backups().length > 0}>
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          disabled={saving() || restoring() || running()}
+                          onClick={openBackupFolder}
+                        >
+                          {language.t("maintenance.dialog.backup.open")}
+                        </Button>
+                      </Show>
+                    </div>
+                    <Show when={saving()}>
+                      <span data-slot="maintenance-import-status">
+                        <Loader width={11} height={11} />
+                        {language.t("maintenance.dialog.backup.saving")}
+                      </span>
+                    </Show>
+                    <Show when={saved()}>
+                      {(result) => {
+                        if (!result().ok)
+                          return (
+                            <div data-slot="maintenance-setup" data-tone="danger" role="alert">
+                              <span data-slot="maintenance-setup-text">
+                                {language.t("maintenance.dialog.backup.failed")}
+                              </span>
+                              <Show when={result().message}>
+                                {(message) => <code data-slot="maintenance-outcome-detail">{message()}</code>}
+                              </Show>
+                            </div>
+                          )
+
+                        const count = result().count ?? 0
+
+                        if (count === 0)
+                          return (
+                            <span data-slot="maintenance-import-status" role="status">
+                              {language.t("maintenance.dialog.backup.empty")}
                             </span>
-                            <Show when={result().message}>
-                              {(message) => <code data-slot="maintenance-outcome-detail">{message()}</code>}
+                          )
+
+                        return (
+                          <div data-slot="maintenance-result">
+                            <span data-slot="maintenance-import-status" data-tone="success" role="status">
+                              <Icon name="check-small" width={12} height={12} />
+                              {(result().failed ?? 0) > 0
+                                ? language.plural("maintenance.dialog.backup.partial", count, {
+                                    failed: String(result().failed),
+                                  })
+                                : language.plural("maintenance.dialog.backup.saved", count)}
+                            </span>
+                            <Show when={result().path}>
+                              {(path) => <code data-slot="maintenance-outcome-detail">{path()}</code>}
                             </Show>
                           </div>
                         )
+                      }}
+                    </Show>
+                  </div>
 
-                      const imported = result().imported ?? 0
-                      const skipped = result().skipped ?? 0
-                      const failed = result().failed ?? 0
-
-                      if (imported === 0 && skipped > 0 && failed === 0)
-                        return (
-                          <span data-slot="maintenance-import-status" role="status">
-                            {language.plural("maintenance.dialog.restore.already", skipped)}
-                          </span>
-                        )
-
-                      return (
-                        <span
-                          data-slot="maintenance-import-status"
-                          data-tone={failed > 0 ? undefined : "success"}
-                          role="status"
-                        >
-                          <Icon name={failed > 0 ? "circle-exclamation" : "check-small"} width={12} height={12} />
-                          {failed > 0
-                            ? language.plural("maintenance.dialog.restore.partial", imported, {
-                                failed: String(failed),
-                              })
-                            : language.plural("maintenance.dialog.restore.done", imported)}
-                        </span>
-                      )
-                    }}
-                  </Show>
-                </div>
-              </Show>
-
-              <div data-slot="maintenance-field">
-                <div data-slot="maintenance-field-label" data-split>
-                  <span>{language.t("maintenance.dialog.rotate")}</span>
-                  <Switch checked={form().rotate} onChange={(rotate) => patch({ rotate })} />
-                </div>
-                <span data-slot="maintenance-field-description">
-                  {language.t("maintenance.dialog.rotate.description")}
-                </span>
-              </div>
-            </Show>
-
-            <Show when={form().rotate && supported()}>
-              <Show when={missingWireguard()}>
-                <div data-slot="maintenance-setup" data-tone="warning" role="status">
-                  <span data-slot="maintenance-setup-title">{language.t("maintenance.dialog.wireguard.title")}</span>
-                  <span data-slot="maintenance-setup-text">{wireguardHint()}</span>
-                  <Show when={windows()}>
-                    <Button variant="outline" size="small" onClick={openWireguardDownload}>
-                      {language.t("maintenance.dialog.wireguard.install")}
-                    </Button>
-                  </Show>
-                </div>
-              </Show>
-
-              <div data-slot="maintenance-field">
-                <span data-slot="maintenance-field-label">{language.t("maintenance.dialog.country")}</span>
-                <Select
-                  options={configs().map((config) => config.id)}
-                  current={form().country}
-                  value={(country) => country}
-                  label={(country) => countryLabel(country, language, configs())}
-                  onSelect={(country) => country && patch({ country })}
-                  appearance="base"
-                  placement="bottom-start"
-                />
-                <Show when={configs().length === 0}>
-                  <span data-slot="maintenance-field-description">{language.t("maintenance.dialog.noConfigs")}</span>
-                </Show>
-              </div>
-
-              <div
-                data-slot="maintenance-import"
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={dropConfig}
-              >
-                <div data-slot="maintenance-field-label" data-split>
-                  <span>{language.t("maintenance.dialog.import")}</span>
-                  <Button variant="outline" size="small" disabled={importing()} onClick={() => void chooseConfig()}>
-                    {language.t("maintenance.dialog.import.pick")}
-                  </Button>
-                </div>
-                <span data-slot="maintenance-field-description">
-                  {language.t("maintenance.dialog.import.description")}
-                </span>
-                <Show when={importing()}>
-                  <span data-slot="maintenance-import-status">
-                    <Loader width={11} height={11} />
-                    {language.t("maintenance.dialog.import.adding")}
-                  </span>
-                </Show>
-                <Show when={importFailure()}>
-                  {(failure) => (
-                    <div data-slot="maintenance-setup" data-tone="danger" role="alert">
-                      <span data-slot="maintenance-setup-text">
-                        {language.t(importFailureKey(failure().reason))}
+                  <Show when={backups().length > 0}>
+                    <div data-slot="maintenance-field">
+                      <span data-slot="maintenance-field-label">{language.t("maintenance.dialog.restore")}</span>
+                      <span data-slot="maintenance-field-description">
+                        {language.t("maintenance.dialog.restore.description")}
                       </span>
-                      <Show when={failure().message}>
-                        {(message) => <code data-slot="maintenance-outcome-detail">{message()}</code>}
+                      <Show when={backups()[0]}>
+                        {(backup) => (
+                          <span data-slot="maintenance-field-description">
+                            {language.plural("maintenance.dialog.restore.last", backup().count, {
+                              time: backupTime(backup().time),
+                            })}
+                          </span>
+                        )}
+                      </Show>
+                      <div data-slot="maintenance-actions">
+                        <Button
+                          variant="outline"
+                          size="small"
+                          disabled={saving() || restoring() || running()}
+                          onClick={restoreConversations}
+                        >
+                          {restoring()
+                            ? language.t("maintenance.dialog.restore.restoring")
+                            : language.t("maintenance.dialog.restore.action")}
+                        </Button>
+                      </div>
+                      <Show when={restored()}>
+                        {(result) => {
+                          if (!result().ok)
+                            return (
+                              <div data-slot="maintenance-setup" data-tone="danger" role="alert">
+                                <span data-slot="maintenance-setup-text">
+                                  {result().reason === "missing"
+                                    ? language.t("maintenance.dialog.restore.none")
+                                    : language.t("maintenance.dialog.restore.failed")}
+                                </span>
+                                <Show when={result().message}>
+                                  {(message) => <code data-slot="maintenance-outcome-detail">{message()}</code>}
+                                </Show>
+                              </div>
+                            )
+
+                          const imported = result().imported ?? 0
+                          const skipped = result().skipped ?? 0
+                          const failed = result().failed ?? 0
+
+                          if (imported === 0 && skipped > 0 && failed === 0)
+                            return (
+                              <span data-slot="maintenance-import-status" role="status">
+                                {language.plural("maintenance.dialog.restore.already", skipped)}
+                              </span>
+                            )
+
+                          return (
+                            <span
+                              data-slot="maintenance-import-status"
+                              data-tone={failed > 0 ? undefined : "success"}
+                              role="status"
+                            >
+                              <Icon name={failed > 0 ? "circle-exclamation" : "check-small"} width={12} height={12} />
+                              {failed > 0
+                                ? language.plural("maintenance.dialog.restore.partial", imported, {
+                                    failed: String(failed),
+                                  })
+                                : language.plural("maintenance.dialog.restore.done", imported)}
+                            </span>
+                          )
+                        }}
                       </Show>
                     </div>
-                  )}
-                </Show>
-                <Show when={imported()}>
-                  {(added) => (
-                    <span data-slot="maintenance-import-status" data-tone="success" role="status">
-                      <Icon name="check-small" width={12} height={12} />
-                      {language.t(
-                        added().replaced
-                          ? "maintenance.dialog.import.replaced"
-                          : "maintenance.dialog.import.added",
-                        { file: added().file },
-                      )}
+                  </Show>
+                </section>
+
+                <section data-slot="maintenance-section">
+                  <h3 data-slot="maintenance-section-title">{language.t("maintenance.dialog.section.network")}</h3>
+                  <div data-slot="maintenance-field">
+                    <div data-slot="maintenance-field-label" data-split>
+                      <span>{language.t("maintenance.dialog.rotate")}</span>
+                      <Switch checked={form().rotate} hideLabel onChange={(rotate) => patch({ rotate })}>
+                        {language.t("maintenance.dialog.rotate")}
+                      </Switch>
+                    </div>
+                    <span data-slot="maintenance-field-description">
+                      {language.t("maintenance.dialog.rotate.description")}
                     </span>
-                  )}
-                </Show>
+                  </div>
+
+                  <Show when={form().rotate}>
+                    <Show when={missingWireguard()}>
+                      <div data-slot="maintenance-setup" data-tone="warning" role="status">
+                        <span data-slot="maintenance-setup-title">
+                          {language.t("maintenance.dialog.wireguard.title")}
+                        </span>
+                        <span data-slot="maintenance-setup-text">{wireguardHint()}</span>
+                        <Show when={windows()}>
+                          <Button variant="outline" size="small" onClick={openWireguardDownload}>
+                            {language.t("maintenance.dialog.wireguard.install")}
+                          </Button>
+                        </Show>
+                      </div>
+                    </Show>
+
+                    <div data-slot="maintenance-field">
+                      <span data-slot="maintenance-field-label">{language.t("maintenance.dialog.country")}</span>
+                      <Select
+                        options={configs().map((config) => config.id)}
+                        current={form().country}
+                        value={(country) => country}
+                        label={(country) => countryLabel(country, language, configs())}
+                        onSelect={(country) => country && patch({ country })}
+                        appearance="base"
+                        placement="bottom-start"
+                      />
+                      <Show when={configs().length === 0}>
+                        <span data-slot="maintenance-field-description">
+                          {language.t("maintenance.dialog.noConfigs")}
+                        </span>
+                      </Show>
+                    </div>
+
+                    <div
+                      data-slot="maintenance-import"
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={dropConfig}
+                    >
+                      <div data-slot="maintenance-field-label" data-split>
+                        <span>{language.t("maintenance.dialog.import")}</span>
+                        <Button
+                          variant="outline"
+                          size="small"
+                          disabled={importing()}
+                          onClick={() => void chooseConfig()}
+                        >
+                          {language.t("maintenance.dialog.import.pick")}
+                        </Button>
+                      </div>
+                      <span data-slot="maintenance-field-description">
+                        {language.t("maintenance.dialog.import.description")}
+                      </span>
+                      <Show when={importing()}>
+                        <span data-slot="maintenance-import-status">
+                          <Loader width={11} height={11} />
+                          {language.t("maintenance.dialog.import.adding")}
+                        </span>
+                      </Show>
+                      <Show when={importFailure()}>
+                        {(failure) => (
+                          <div data-slot="maintenance-setup" data-tone="danger" role="alert">
+                            <span data-slot="maintenance-setup-text">
+                              {language.t(importFailureKey(failure().reason))}
+                            </span>
+                            <Show when={failure().message}>
+                              {(message) => <code data-slot="maintenance-outcome-detail">{message()}</code>}
+                            </Show>
+                          </div>
+                        )}
+                      </Show>
+                      <Show when={imported()}>
+                        {(added) => (
+                          <span data-slot="maintenance-import-status" data-tone="success" role="status">
+                            <Icon name="check-small" width={12} height={12} />
+                            {language.t(
+                              added().replaced
+                                ? "maintenance.dialog.import.replaced"
+                                : "maintenance.dialog.import.added",
+                              { file: added().file },
+                            )}
+                          </span>
+                        )}
+                      </Show>
+                    </div>
+
+                    <div data-slot="maintenance-field">
+                      <span data-slot="maintenance-field-label">{language.t("maintenance.dialog.configDir")}</span>
+                      <div data-slot="maintenance-path">
+                        <code>{configDir()}</code>
+                        <Button variant="ghost" size="small" disabled={!configDir()} onClick={openConfigDir}>
+                          {language.t("maintenance.dialog.openConfigDir")}
+                        </Button>
+                      </div>
+                      <span data-slot="maintenance-field-description">
+                        {language.t("maintenance.dialog.configDir.description")}
+                      </span>
+                    </div>
+
+                    <Show when={linux()}>
+                      <div data-slot="maintenance-field">
+                        <span data-slot="maintenance-field-label">
+                          <Icon name="lock" width={12} height={12} />
+                          {language.t("maintenance.dialog.password")}
+                        </span>
+                        <TextInput
+                          type="password"
+                          value={form().password}
+                          appearance="base"
+                          placeholder={language.t("maintenance.dialog.password.placeholder")}
+                          invalid={failed()?.reason === "invalid-password"}
+                          onInput={(event) => patch({ password: event.currentTarget.value })}
+                          autocomplete="current-password"
+                        />
+                        <span data-slot="maintenance-field-description">
+                          {language.t("maintenance.dialog.password.description")}
+                        </span>
+                      </div>
+                    </Show>
+
+                    <Show when={windows()}>
+                      <span data-slot="maintenance-field-description">
+                        {language.t("maintenance.dialog.elevation.windows")}
+                      </span>
+                    </Show>
+                  </Show>
+                </section>
               </div>
-
-              <div data-slot="maintenance-field">
-                <span data-slot="maintenance-field-label">{language.t("maintenance.dialog.configDir")}</span>
-                <div data-slot="maintenance-path">
-                  <code>{configDir()}</code>
-                  <Button variant="ghost" size="small" disabled={!configDir()} onClick={openConfigDir}>
-                    {language.t("maintenance.dialog.openConfigDir")}
-                  </Button>
-                </div>
-                <span data-slot="maintenance-field-description">
-                  {language.t("maintenance.dialog.configDir.description")}
-                </span>
-              </div>
-
-              <Show when={linux()}>
-                <div data-slot="maintenance-field">
-                  <span data-slot="maintenance-field-label">
-                    <Icon name="lock" width={12} height={12} />
-                    {language.t("maintenance.dialog.password")}
-                  </span>
-                  <TextInput
-                    type="password"
-                    value={form().password}
-                    appearance="base"
-                    placeholder={language.t("maintenance.dialog.password.placeholder")}
-                    invalid={failed()?.reason === "invalid-password"}
-                    onInput={(event) => patch({ password: event.currentTarget.value })}
-                    autocomplete="current-password"
-                  />
-                  <span data-slot="maintenance-field-description">
-                    {language.t("maintenance.dialog.password.description")}
-                  </span>
-                </div>
-              </Show>
-
-              <Show when={windows()}>
-                <span data-slot="maintenance-field-description">
-                  {language.t("maintenance.dialog.elevation.windows")}
-                </span>
-              </Show>
             </Show>
           </Show>
 

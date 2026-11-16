@@ -153,6 +153,57 @@
   padding: 0 16px 16px;
 }
 
+/* Wider than the default dialog, so the two column layout fits, but never taller than the window.
+   A restored window used to push a fit-height dialog past both screen edges; now the body scrolls
+   while the header and footer stay put. */
+[data-slot="dialog-container"].maintenance-dialog-container {
+  width: min(calc(100vw - 32px), 720px);
+  max-height: min(calc(100vh - 32px), 760px);
+  max-height: min(calc(100dvh - 32px), 760px);
+}
+
+[data-slot="dialog-container"].maintenance-dialog-container [data-slot="dialog-content"] {
+  overflow: hidden;
+}
+
+[data-slot="dialog-container"].maintenance-dialog-container [data-slot="dialog-body"] {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--v2-border-border-strong) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+/* Two columns when the dialog can afford them, one when the window is narrow. auto-fit measures the
+   content, so this adapts to the window without a media query. */
+[data-slot="maintenance-sections"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+[data-slot="maintenance-section"] {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 8px;
+}
+
+[data-slot="maintenance-section-title"] {
+  margin: 0;
+  color: var(--v2-text-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 14px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
 [data-slot="maintenance-warning"] {
   padding: 8px 10px;
   border-radius: 6px;
@@ -251,6 +302,46 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* The optional parts of a saved conversation; the inset keeps the four switches one visual group. */
+[data-slot="maintenance-contents"] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--v2-overlay-simple-overlay-hover);
+}
+
+[data-slot="maintenance-contents-header"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+[data-slot="maintenance-contents-row"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+[data-slot="maintenance-contents-text"] {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--v2-text-text-base);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+[data-slot="maintenance-contents-hint"] {
+  color: var(--v2-text-text-muted);
+  font-size: 11px;
+  line-height: 16px;
 }
 
 /* A finished backup: the outcome line with the folder it wrote, stacked. */

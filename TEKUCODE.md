@@ -153,3 +153,14 @@ bun run check                                 # canonical full lint + type-check
   pointed inside it before), set the Linux desktop name explicitly, and publish a user-level
   `ai.opencode.desktop*.desktop` entry with hicolor icons so an AppImage gets the TC icon in the
   taskbar instead of the compositor's fallback.
+- 2026-11-16 — Conversation backups gained contents options. The clean-slate dialog's backup section
+  now has switches for tool output, reasoning, attachments, and titles/metadata, plus a one-click
+  "Keep text only" preset; the same options apply to the save-before-wipe step. Trimmed exports keep
+  session and message IDs because `experimental.session.import` keys its rows by them, and every
+  trimmed message still decodes against `Session.Message.Info`. On a real 209 KB conversation the
+  text-only preset writes 40 KB (81% smaller) and restores without loss of the visible transcript.
+- 2026-11-16 — Clean-slate dialog fits short windows and uses the space. The body is capped to the
+  window height and scrolls on its own, so the header and footer never leave the screen in a restored
+  (non-maximized) window. The form is grouped into Conversations and Network cards, laid out in two
+  columns when the window is wide and one when it is narrow, and the backup contents sit in an inset
+  that follows the active theme.

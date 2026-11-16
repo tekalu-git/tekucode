@@ -1455,6 +1455,8 @@ export const dict = {
   "maintenance.bar.unsupported": "Maintenance unavailable on this platform",
   "maintenance.bar.wireguardMissing": "WireGuard not installed",
   "maintenance.dialog.title": "Clean slate",
+  "maintenance.dialog.section.conversations": "Conversations",
+  "maintenance.dialog.section.network": "Network",
   "maintenance.dialog.description":
     "Stops the local server, snapshots and restores the database schema, removes sessions, projects, accounts, provider connections, drafts, attachments, saved state and lockouts, clears caches and browser storage, then rotates the VPN tunnel. Executables, app settings and WireGuard configs stay. The app reloads automatically when it finishes, so you do not need to restart it.",
   "maintenance.dialog.warning":
@@ -1462,6 +1464,22 @@ export const dict = {
   "maintenance.dialog.backup.toggle": "Save conversations before wiping",
   "maintenance.dialog.backup.description":
     "Exports every conversation to a folder outside the data a wipe removes. You can also save them at any time without wiping.",
+  "maintenance.dialog.backup.contents": "What to keep",
+  "maintenance.dialog.backup.contents.description":
+    "Choose what a saved conversation includes. Everything off leaves just the visible text.",
+  "maintenance.dialog.backup.contents.all": "Keep everything",
+  "maintenance.dialog.backup.contents.textOnly": "Keep text only",
+  "maintenance.dialog.backup.contents.toolOutput": "Tool output",
+  "maintenance.dialog.backup.contents.toolOutput.description": "Command results and file reads.",
+  "maintenance.dialog.backup.contents.reasoning": "Reasoning",
+  "maintenance.dialog.backup.contents.reasoning.description": "The model's thinking before each reply.",
+  "maintenance.dialog.backup.contents.attachments": "Attachments",
+  "maintenance.dialog.backup.contents.attachments.description": "Inline images and files, without their bytes.",
+  "maintenance.dialog.backup.contents.metadata": "Titles and metadata",
+  "maintenance.dialog.backup.contents.metadata.description":
+    "Session titles, custom metadata and provider replay data.",
+  "maintenance.dialog.backup.contents.ids":
+    "Conversation and message IDs always stay in the file because restore uses them as keys.",
   "maintenance.dialog.backup.save": "Save now",
   "maintenance.dialog.backup.saving": "Saving conversations…",
   "maintenance.dialog.backup.open": "Open folder",

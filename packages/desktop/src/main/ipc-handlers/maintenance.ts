@@ -12,11 +12,17 @@ export const maintenanceHandlers = MaintenanceRpcs.toLayer(
     return MaintenanceRpcs.of({
       MaintenanceStatus: () => maintenance.status,
       MaintenanceImport: (payload) => maintenance.importConfig(payload),
-      MaintenanceBackup: () => maintenance.backup,
+      MaintenanceBackup: (payload) => maintenance.backup({ options: payload.options }),
       MaintenanceRestore: (payload) => maintenance.restore({ id: payload.id }),
       MaintenanceWipe: (payload) =>
         maintenance.wipe(
-          { rotate: payload.rotate, country: payload.country, password: payload.password, backup: payload.backup },
+          {
+            rotate: payload.rotate,
+            country: payload.country,
+            password: payload.password,
+            backup: payload.backup,
+            backupOptions: payload.backupOptions,
+          },
           (progress) => {
             const event = new MaintenanceProgress(progress)
 

@@ -87,7 +87,7 @@ export type ElectronAPI = {
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
   maintenanceStatus(): Promise<MaintenanceStatusData>
   maintenanceImport(input: MaintenanceImportInput): Promise<MaintenanceImportData>
-  maintenanceBackup(): Promise<MaintenanceBackupData>
+  maintenanceBackup(options?: MaintenanceBackupOptionsData): Promise<MaintenanceBackupData>
   maintenanceRestore(input: MaintenanceRestoreInput): Promise<MaintenanceRestoreData>
   maintenanceWipe(options: MaintenanceWipeOptions): Promise<MaintenanceResultData>
   onMaintenanceProgress(cb: (progress: MaintenanceProgressData) => void): () => void
@@ -129,6 +129,15 @@ export type MaintenanceWipeOptions = {
   country?: string
   password?: string
   backup: boolean
+  backupOptions?: MaintenanceBackupOptionsData
+}
+
+/** What a conversation backup keeps; omitted kinds stay on, so nothing sent means the full transcript. */
+export type MaintenanceBackupOptionsData = {
+  toolOutput?: boolean
+  reasoning?: boolean
+  attachments?: boolean
+  metadata?: boolean
 }
 
 export type MaintenanceBackupData = {

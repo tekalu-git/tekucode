@@ -118,12 +118,26 @@ export type MaintenanceRestoreResult = {
   message?: string
 }
 
+/** What a conversation backup keeps; omitted kinds stay on, so nothing sent means the full transcript. */
+export type MaintenanceBackupOptions = {
+  toolOutput?: boolean
+  reasoning?: boolean
+  attachments?: boolean
+  metadata?: boolean
+}
+
 export type MaintenanceBridge = {
   status(): Promise<MaintenanceStatus>
   importConfig(input: MaintenanceImportInput): Promise<MaintenanceImportResult>
-  backup(): Promise<MaintenanceBackupResult>
+  backup(options?: MaintenanceBackupOptions): Promise<MaintenanceBackupResult>
   restore(input?: { id?: string }): Promise<MaintenanceRestoreResult>
-  wipe(options: { rotate: boolean; country?: string; password?: string; backup: boolean }): Promise<MaintenanceResult>
+  wipe(options: {
+    rotate: boolean
+    country?: string
+    password?: string
+    backup: boolean
+    backupOptions?: MaintenanceBackupOptions
+  }): Promise<MaintenanceResult>
   onProgress(cb: (progress: MaintenanceProgress) => void): () => void
 }
 
