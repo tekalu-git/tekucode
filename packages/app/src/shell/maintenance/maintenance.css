@@ -157,16 +157,24 @@
    A restored window used to push a fit-height dialog past both screen edges; now the body scrolls
    while the header and footer stay put. */
 [data-slot="dialog-container"].maintenance-dialog-container {
-  width: min(calc(100vw - 32px), 720px);
-  max-height: min(calc(100vh - 32px), 760px);
-  max-height: min(calc(100dvh - 32px), 760px);
+  width: min(calc(100vw - 32px), 820px);
+  max-height: min(calc(100vh - 32px), 780px);
+  max-height: min(calc(100dvh - 32px), 780px);
 }
 
-[data-slot="dialog-container"].maintenance-dialog-container [data-slot="dialog-content"] {
+/* The dialog body opts into scrolling itself. These selectors repeat the dialog component from
+   dialog.css because the base styles set overflow on the body through a four-level nested rule; a
+   shorter selector loses the cascade and the body silently clips instead of scrolling. */
+[data-component="dialog-v2"] [data-slot="dialog-container"].maintenance-dialog-container [data-slot="dialog-content"] {
+  min-height: 0;
   overflow: hidden;
 }
 
-[data-slot="dialog-container"].maintenance-dialog-container [data-slot="dialog-body"] {
+[data-component="dialog-v2"]
+  [data-slot="dialog-container"].maintenance-dialog-container
+  [data-slot="dialog-content"]
+  [data-slot="dialog-body"] {
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: var(--v2-border-border-strong) transparent;
@@ -323,24 +331,24 @@
 
 [data-slot="maintenance-contents-row"] {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
-[data-slot="maintenance-contents-text"] {
-  display: flex;
+/* Four optional parts, two per row when the inset can fit them. Each label carries its explanation
+   as a native tooltip so the list stays scannable without four extra lines of copy. */
+[data-slot="maintenance-contents-grid"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  gap: 6px 12px;
+}
+
+[data-slot="maintenance-contents-label"] {
   min-width: 0;
-  flex-direction: column;
-  gap: 2px;
   color: var(--v2-text-text-base);
   font-size: 12px;
-  line-height: 16px;
-}
-
-[data-slot="maintenance-contents-hint"] {
-  color: var(--v2-text-text-muted);
-  font-size: 11px;
   line-height: 16px;
 }
 

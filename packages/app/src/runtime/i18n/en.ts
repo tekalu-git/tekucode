@@ -1458,7 +1458,7 @@ export const dict = {
   "maintenance.dialog.section.conversations": "Conversations",
   "maintenance.dialog.section.network": "Network",
   "maintenance.dialog.description":
-    "Stops the local server, snapshots and restores the database schema, removes sessions, projects, accounts, provider connections, drafts, attachments, saved state and lockouts, clears caches and browser storage, then rotates the VPN tunnel. Executables, app settings and WireGuard configs stay. The app reloads automatically when it finishes, so you do not need to restart it.",
+    "Removes sessions, projects, accounts, provider connections, drafts, attachments, saved state and caches, then rotates the VPN tunnel. Executables, app settings and WireGuard configs stay. The app reloads automatically when it finishes.",
   "maintenance.dialog.warning":
     "Running turns are cancelled. Sessions, drafts, saved state and provider connections are deleted.",
   "maintenance.dialog.backup.toggle": "Save conversations before wiping",

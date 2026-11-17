@@ -358,33 +358,34 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
                       <span data-slot="maintenance-field-description">
                         {language.t("maintenance.dialog.backup.contents.description")}
                       </span>
-                      <For
-                        each={
-                          [
-                            ["toolOutput", "maintenance.dialog.backup.contents.toolOutput"],
-                            ["reasoning", "maintenance.dialog.backup.contents.reasoning"],
-                            ["attachments", "maintenance.dialog.backup.contents.attachments"],
-                            ["metadata", "maintenance.dialog.backup.contents.metadata"],
-                          ] as const
-                        }
-                      >
-                        {([key, label]) => (
-                          <div data-slot="maintenance-contents-row">
-                            <div data-slot="maintenance-contents-text">
-                              <span>{language.t(label)}</span>
-                              <span data-slot="maintenance-contents-hint">{language.t(`${label}.description`)}</span>
+                      <div data-slot="maintenance-contents-grid">
+                        <For
+                          each={
+                            [
+                              ["toolOutput", "maintenance.dialog.backup.contents.toolOutput"],
+                              ["reasoning", "maintenance.dialog.backup.contents.reasoning"],
+                              ["attachments", "maintenance.dialog.backup.contents.attachments"],
+                              ["metadata", "maintenance.dialog.backup.contents.metadata"],
+                            ] as const
+                          }
+                        >
+                          {([key, label]) => (
+                            <div data-slot="maintenance-contents-row">
+                              <span data-slot="maintenance-contents-label" title={language.t(`${label}.description`)}>
+                                {language.t(label)}
+                              </span>
+                              <Switch
+                                checked={contents()[key]}
+                                disabled={running()}
+                                hideLabel
+                                onChange={(value) => setContent(key, value)}
+                              >
+                                {language.t(label)}
+                              </Switch>
                             </div>
-                            <Switch
-                              checked={contents()[key]}
-                              disabled={running()}
-                              hideLabel
-                              onChange={(value) => setContent(key, value)}
-                            >
-                              {language.t(label)}
-                            </Switch>
-                          </div>
-                        )}
-                      </For>
+                          )}
+                        </For>
+                      </div>
                       <span data-slot="maintenance-field-description">
                         {language.t("maintenance.dialog.backup.contents.ids")}
                       </span>

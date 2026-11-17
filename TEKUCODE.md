@@ -164,3 +164,8 @@ bun run check                                 # canonical full lint + type-check
   (non-maximized) window. The form is grouped into Conversations and Network cards, laid out in two
   columns when the window is wide and one when it is narrow, and the backup contents sit in an inset
   that follows the active theme.
+- 2026-11-17 — Clean-slate dialog scrolls for real. Its body override was losing the cascade to the
+  dialog's four-level nested `overflow: hidden`, so content was clipped rather than scrolled and the
+  restore button sat out of bounds. The override now repeats the component selector and sets
+  `min-height: 0`, the header copy is shorter, and the four backup options use a two-column inset so
+  the dialog fits more windows without scrolling.
