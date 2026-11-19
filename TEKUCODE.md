@@ -45,6 +45,9 @@ redesigned terminal UI: **layout A · Cockpit** and a **grass-green terminal the
 - `bun typecheck` in `packages/tui` still reports 7 pre-existing errors in `packages/core/plugin/provider`
   (`tor-http-client.ts`, `opencode.ts`) from the rebrand work — unrelated to the TUI changes.
 - Visual/manual verification at 80×24, 110×30 and 160×40 has not been recorded yet.
+- Desktop onboarding (2026-11-17): after the silent bootstrap the window now shows a welcome dialog, a
+  five-step spotlight over the real controls, and a skippable folder step; completion persists in the
+  main settings store. Code lives in `packages/desktop/src/renderer/tour/`.
 
 ## Next steps (in order)
 
@@ -67,6 +70,8 @@ redesigned terminal UI: **layout A · Cockpit** and a **grass-green terminal the
 - `packages/tui/src/util/cockpit.ts` — token/elapsed formatting
 - `packages/tui/AGENTS.md` — TUI rules (experiments registry, stories)
 - `packages/desktop/icons/` — TC icon sets per channel (`source/*.svg` is the origin); `README.md` explains regeneration
+- `packages/desktop/src/renderer/tour/` — first-run welcome, spotlight steps, folder step, state machine
+- `packages/desktop/src/main/lifecycle/onboarding-tour.ts` — `onboardingTourComplete` gate and replay reset
 - `packages/app/manifest.json`, `packages/ui/src/assets/favicon/` — PWA/favicon assets, generated from the same SVGs
 - `AGENTS.md` (repo root) — upstream conventions (branch names, theme token semantics, dev:live)
 
@@ -169,3 +174,45 @@ bun run check                                 # canonical full lint + type-check
   restore button sat out of bounds. The override now repeats the component selector and sets
   `min-height: 0`, the header copy is shorter, and the four backup options use a two-column inset so
   the dialog fits more windows without scrolling.
+- 2026-11-17 — Desktop first-run onboarding became visible. After the silent bootstrap (default project
+  plus draft tab) the app reveals and shows a welcome dialog — start the tour, or skip it for someone
+  who already knows OpenCode — then a five-step spotlight cuts a hole around the real composer, model
+  picker, agent picker, project selector and tab strip, and a folder step keeps the default project or
+  replaces it through the native directory picker before the composer takes focus. Every stage is
+  skippable; `→`/`Enter` advance, `←` goes back, `Esc` skips, and a missing anchor (collapsed rail,
+  narrow window) centers the card instead of failing. Completion is stored in the main settings store as
+  `onboardingTourComplete` next to `firstLaunchOnboardingComplete`, and Settings → General gained
+  "Show welcome tour", which re-arms it for the next window mount. New copy is English-only (other
+  locales fall back), and anchors are `data-tour` attributes on the existing controls.
+- 2026-11-17 — First-run onboarding polish. The welcome and folder dialogs opt into the shared `fit`
+  sizing so they hug their content instead of a fixed 480×368 box, and the dialog body keeps a 16px
+  inset. The folder step renders the suggested path inside a framed, padded field with a folder glyph
+  and a Browse button that opens the native picker (the footer's Choose folder remains only when no
+  folder is suggested), with a short empty-state line for installs without a default project. The
+  spotlight card now springs between targets on a 560 ms eased curve, the hole follows on a 480 ms
+  curve, and each step's copy remounts into a keyed enter animation that slides in from the card's
+  placement side; reduced-motion still disables all of it.
+- 2026-11-19 — Clean-slate VPN rotation became app-scoped. The tunnel no longer installs a
+  system-wide WireGuard service or route: packaged builds ship the ISC-licensed `wireproxy` 1.1.3
+  next to the CLI, start it as a child of the desktop main process against the selected `.conf`, and
+  expose it on an ephemeral loopback HTTP CONNECT proxy. Only the OpenCode sidecar is spawned with
+  `HTTP(S)_PROXY`/`ALL_PROXY` (both spellings), which Bun honors, so model traffic crosses the tunnel
+  while system routes, DNS and other apps stay on the normal connection. The existing `NO_PROXY` list
+  keeps `127.0.0.1`/`localhost`/`::1` direct, so the window still reaches the local server. Rotating
+  needs no driver, sudo or UAC, and the tunnel exits with the app (`will-quit`) instead of leaving a
+  service to uninstall; the dialog lost its password and WireGuard-install prompts and now reports a
+  scoped tunnel. `script/wireproxy.ts` downloads the matching release for `OPENCODE_TARGET` in
+  `build`, `dev` and `pack`; upstream has no Windows ARM64 binary, so that target packages without a
+  tunnel runtime and the dialog disables rotation. Linux and Windows are supported, macOS is not.
+- 2026-11-19 — Clean-slate wipe no longer touches another running install, and keeps a custom
+  service port. The stop step ran `pkill -f "opencode.*serve"`, which matched every staged
+  `opencode-cli serve` on the machine — including the 2.3.3 sidecar the current desktop session was
+  using — so a wipe in a second instance killed the first. The match is now anchored to
+  `<userData>/cli/<stage>/opencode-cli serve` (Windows filters `ExecutablePath` under the same
+  folder), and Electron helpers, the bundle mount and other installs never match. The wipe also
+  reads `config/opencode/service.json` before the config directory goes away and writes the port
+  back after the snapshot restore, so an install whose service is not on 49374 restarts on its own
+  port instead of failing with "port already in use". Verified end to end in a rootless Fedora
+  container (Xvfb + CDP) with the real 2.3.3 still holding 49374: backup, rotation to
+  NL-FREE#253, wipe, restore and restart all completed, exit IP 80.79.7.83, bar showed
+  "NL-FREE#253 tunnel · TekuCode only", host stayed on its direct IP.
