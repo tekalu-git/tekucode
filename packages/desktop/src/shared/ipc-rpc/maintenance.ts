@@ -24,7 +24,6 @@ export const MaintenanceStep = Schema.Literals(maintenanceSteps)
 export const MaintenanceVpn = Schema.Struct({
   connected: Schema.Boolean,
   country: Schema.optionalKey(Schema.String),
-  interface: Schema.optionalKey(Schema.String),
   ip: Schema.optionalKey(Schema.String),
 })
 
@@ -64,8 +63,6 @@ export const MaintenanceStatus = Schema.Struct({
 export const MaintenanceFailure = Schema.Literals([
   "busy",
   "unsupported",
-  "invalid-password",
-  "elevation-required",
   "missing-config",
   "missing-wireguard",
   "failed",
@@ -143,7 +140,6 @@ export const MaintenanceWipeRpc = Rpc.make("MaintenanceWipe", {
   payload: {
     rotate: Schema.Boolean,
     country: Schema.optionalKey(Schema.String),
-    password: Schema.optionalKey(Schema.String),
     /** Export every conversation before the wipe removes them. */
     backup: Schema.Boolean,
     /** What that export keeps; omitted means the full transcript. */

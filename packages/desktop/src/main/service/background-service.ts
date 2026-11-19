@@ -4,6 +4,7 @@ import { Context, Deferred, Effect, FileSystem, Layer, Option, Path, Ref, Schema
 import { SidecarChanged } from "../../shared/ipc-rpc/events"
 import { CHANNEL } from "../constants"
 import { emitIpcEvent } from "../ipc-events"
+import { tunnelEnvironment } from "../maintenance/vpn"
 import { getMainWindows } from "../windows"
 import { BackgroundServiceMachine } from "./background-service-machine"
 import { cleanStages } from "./cli-stages"
@@ -106,6 +107,9 @@ const ensure = Effect.fn("BackgroundService.ensure")(function* (mode: Background
         "--service",
         ...(setup.isolated ? ["--hostname", "0.0.0.0", "--port", String(0x0c0c)] : []),
       ],
+      // When maintenance raised an app-scoped tunnel, the server is the only process that uses it;
+      // loopback stays direct through NO_PROXY, so the window keeps reaching the server.
+      env: tunnelEnvironment(),
       onStart: (reason, previousVersion) =>
         runFork(Effect.logInfo("v2 CLI background service starting", { reason, previousVersion })),
     })

@@ -19,21 +19,21 @@ describe("maintenance dialog", () => {
 
   test("a failure keeps the form so a retry sends the same country", () => {
     const failed = replay([
-      { type: "form.patched", patch: { country: "sg", password: "hunter2" } },
+      { type: "form.patched", patch: { country: "sg" } },
       { type: "run.started" },
       { type: "progress", progress: { id: "run", step: "vpn", status: "failed", message: "denied" } },
-      { type: "run.failed", reason: "invalid-password", message: "sudo rejected the password", wiped: false },
+      { type: "run.failed", reason: "failed", message: "the tunnel did not answer", wiped: false },
     ])
 
     expect(failed).toMatchObject({
       status: "failed",
-      reason: "invalid-password",
-      form: { rotate: true, country: "sg", password: "hunter2" },
+      reason: "failed",
+      form: { rotate: true, country: "sg" },
       steps: { vpn: { status: "failed", message: "denied" } },
     })
     expect(transition(failed, { type: "run.started" })).toMatchObject({
       status: "running",
-      form: { country: "sg", password: "hunter2" },
+      form: { country: "sg" },
       step: "vpn",
     })
   })
@@ -47,7 +47,7 @@ describe("maintenance dialog", () => {
 
     expect(done).toEqual({
       status: "done",
-      form: { backup: true, rotate: true, country: "nl", password: "" },
+      form: { backup: true, rotate: true, country: "nl" },
       ip: "203.0.113.9",
     })
     expect(transition(done, { type: "run.started" })).toBe(done)
@@ -55,7 +55,7 @@ describe("maintenance dialog", () => {
 })
 
 describe("maintenance failure copy", () => {
-  test("a missing WireGuard install points at the setup message", () => {
+  test("a missing tunnel runtime points at the setup message", () => {
     expect(failureKey("missing-wireguard")).toBe("maintenance.dialog.missingWireguard")
   })
 

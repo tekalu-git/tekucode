@@ -61,7 +61,6 @@ export type MaintenanceStatus = {
   vpn: {
     connected: boolean
     country?: string
-    interface?: string
     ip?: string
   }
   wireguard: MaintenanceWireguard
@@ -75,8 +74,6 @@ export type MaintenanceResult = {
   reason?:
     | "busy"
     | "unsupported"
-    | "invalid-password"
-    | "elevation-required"
     | "missing-config"
     | "missing-wireguard"
     | "failed"
@@ -134,7 +131,6 @@ export type MaintenanceBridge = {
   wipe(options: {
     rotate: boolean
     country?: string
-    password?: string
     backup: boolean
     backupOptions?: MaintenanceBackupOptions
   }): Promise<MaintenanceResult>

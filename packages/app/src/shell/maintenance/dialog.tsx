@@ -5,7 +5,6 @@ import { Icon } from "@opencode/ui/icon"
 import { Loader } from "@opencode/ui/loader"
 import { Select } from "@opencode/ui/select"
 import { Switch } from "@opencode/ui/switch"
-import { TextInput } from "@opencode/ui/text-input"
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 import {
@@ -29,8 +28,6 @@ import {
   type State,
 } from "./machine"
 import "./maintenance.css"
-
-const WIREGUARD_DOWNLOAD = "https://www.wireguard.com/install/"
 
 /** What a saved conversation keeps. Every kind starts on; the IDs the import needs are not optional. */
 type BackupContents = {
@@ -118,8 +115,6 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
 
     if (current.rotate) request.country = current.country
 
-    if (current.password) request.password = current.password
-
     dispatch({ type: "run.started" })
 
     void maintenance.wipe(request).then(
@@ -187,22 +182,14 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
 
   const running = () => isRunning(state())
 
-  // Setup state comes from main: which OS the shell runs on, whether WireGuard is installed, and the
-  // folder the tunnel configs are read from. Until it arrives the dialog stays optimistic.
+  // Setup state comes from main: whether its userspace tunnel runtime is present and the folder the
+  // tunnel configs are read from. Until it arrives the dialog stays optimistic.
   const supported = () => status()?.supported !== false
-  const os = () => status()?.platform
-  const windows = () => os() === "win32"
-  const linux = () => os() === "linux"
   const wireguard = () => status()?.wireguard
   const missingWireguard = () => supported() && wireguard()?.installed === false
   const configDir = () => wireguard()?.configDir ?? ""
   const needsConfig = () => form().rotate && configs().length === 0
   const blocked = () => !supported() || (form().rotate && (missingWireguard() || needsConfig()))
-
-  const wireguardHint = () =>
-    windows() ? language.t("maintenance.dialog.wireguard.windows") : language.t("maintenance.dialog.wireguard.linux")
-
-  const openWireguardDownload = () => void platform.openExternal(WIREGUARD_DOWNLOAD)
 
   const openConfigDir = () => {
     const directory = configDir()
@@ -295,10 +282,7 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
     return current.status === "done" ? current : undefined
   }
 
-  const failureMessage = (reason: Parameters<typeof failureKey>[0]) =>
-    reason === "elevation-required" && windows()
-      ? language.t("maintenance.dialog.elevation.windowsDenied")
-      : language.t(failureKey(reason))
+  const failureMessage = (reason: Parameters<typeof failureKey>[0]) => language.t(failureKey(reason))
 
   return (
     <Dialog fit containerClass="maintenance-dialog-container" preventBackdropDismiss={running()}>
@@ -554,12 +538,9 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
                         <span data-slot="maintenance-setup-title">
                           {language.t("maintenance.dialog.wireguard.title")}
                         </span>
-                        <span data-slot="maintenance-setup-text">{wireguardHint()}</span>
-                        <Show when={windows()}>
-                          <Button variant="outline" size="small" onClick={openWireguardDownload}>
-                            {language.t("maintenance.dialog.wireguard.install")}
-                          </Button>
-                        </Show>
+                        <span data-slot="maintenance-setup-text">
+                          {language.t("maintenance.dialog.wireguard.missing")}
+                        </span>
                       </div>
                     </Show>
 
@@ -646,32 +627,9 @@ export function DialogMaintenance(props: { initial?: MaintenanceStatus }) {
                       </span>
                     </div>
 
-                    <Show when={linux()}>
-                      <div data-slot="maintenance-field">
-                        <span data-slot="maintenance-field-label">
-                          <Icon name="lock" width={12} height={12} />
-                          {language.t("maintenance.dialog.password")}
-                        </span>
-                        <TextInput
-                          type="password"
-                          value={form().password}
-                          appearance="base"
-                          placeholder={language.t("maintenance.dialog.password.placeholder")}
-                          invalid={failed()?.reason === "invalid-password"}
-                          onInput={(event) => patch({ password: event.currentTarget.value })}
-                          autocomplete="current-password"
-                        />
-                        <span data-slot="maintenance-field-description">
-                          {language.t("maintenance.dialog.password.description")}
-                        </span>
-                      </div>
-                    </Show>
-
-                    <Show when={windows()}>
-                      <span data-slot="maintenance-field-description">
-                        {language.t("maintenance.dialog.elevation.windows")}
-                      </span>
-                    </Show>
+                    <span data-slot="maintenance-field-description">
+                      {language.t("maintenance.dialog.scope")}
+                    </span>
                   </Show>
                 </section>
               </div>

@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { prepareDevElectron } from "./dev-electron"
 import { downloadCliToResources, windowsify } from "./utils"
+import { ensureWireproxy } from "./wireproxy"
 
 type ServerSource = { type: "build" } | { type: "download"; version: string }
 
@@ -26,6 +27,7 @@ async function prepareDesktop() {
   await Promise.all([
     $`bun run install-electron`,
     $`bun ./script/copy-icons.ts ${process.env.OPENCODE_CHANNEL ?? "dev"}`,
+    ensureWireproxy(),
   ])
 
   if (process.platform === "darwin") process.env.ELECTRON_EXEC_PATH = await prepareDevElectron()

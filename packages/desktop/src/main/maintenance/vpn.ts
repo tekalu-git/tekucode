@@ -1,11 +1,15 @@
+import { spawn, type ChildProcess } from "node:child_process"
 import { existsSync, readdirSync } from "node:fs"
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
+import { createServer } from "node:net"
+import { tmpdir } from "node:os"
 import { basename, join } from "node:path"
-import { runElevated, runElevatedPowerShell, runPowerShell } from "./elevate"
+import { HttpsProxyAgent } from "https-proxy-agent"
+import https from "node:https"
 import { exists } from "./files"
 import type { Paths } from "./paths"
 
-/** Everything here reads and writes only the WireGuard config directory. */
+/** Everything here reads the WireGuard config directory; the tunnel itself is a child process. */
 export type WireguardPaths = Pick<Paths, "wireguard">
 
 export type WireguardConfig = {
@@ -15,8 +19,8 @@ export type WireguardConfig = {
   readonly path: string
 }
 
-/** Where the tunnel tools come from, and whether this install can find them. */
-export type WireguardInstallation = {
+/** Where the tunnel runtime comes from, and whether this install can find it. */
+export type TunnelInstallation = {
   readonly installed: boolean
   readonly executable?: string
   readonly configDir: string
@@ -51,29 +55,32 @@ const legacyFiles = {
   us1: "us-free-139.conf",
 } satisfies Record<string, string>
 
-const WG_QUICK = ["/usr/bin/wg-quick", "/usr/local/bin/wg-quick", "/bin/wg-quick"] as const
-
-const WINDOWS_SERVICE_PREFIX = "WireGuardTunnel$"
-
 // WireGuard configs are a few hundred bytes; anything this large is not a tunnel definition.
 const MAX_CONFIG_SIZE = 64 * 1024
-
-// Linux caps interface names at IFNAMSIZ - 1. Windows accepts these names too, so one limit keeps a
-// config usable on either platform.
-const MAX_INTERFACE_LENGTH = 15
 
 const IP_ENDPOINT = "https://api.ipify.org"
 
 const IP_TTL_MS = 15_000
 
-const TUNNEL_SETTLE_MS = 5_000
+// The first handshake on a free Proton tunnel can take a few seconds; a dead config never answers.
+const TUNNEL_SETTLE_MS = 15_000
 
 type IPCache = {
+  readonly proxy: string | undefined
   readonly value: string | undefined
   readonly at: number
 }
 
-let cached: IPCache = { value: undefined, at: 0 }
+type ActiveTunnel = {
+  readonly country: string
+  readonly proxy: string
+  readonly child: ChildProcess
+  readonly directory: string
+}
+
+let active: ActiveTunnel | undefined
+
+let cached: IPCache = { proxy: undefined, value: undefined, at: 0 }
 
 export function maintenancePlatform(): MaintenancePlatform {
   if (process.platform === "win32") return "win32"
@@ -151,104 +158,11 @@ function resolveConfig(paths: Paths, id: string) {
   } satisfies WireguardConfig
 }
 
-/** Interface names come from config filenames on both platforms: `nl-free-239.conf` is `nl-free-239`. */
-type KnownTunnel = { readonly country: string; readonly label: string; readonly interface: string }
-
-function knownTunnels(paths?: Paths): KnownTunnel[] {
-  const configs = paths ? discoverConfigs(paths) : []
-
-  if (configs.length > 0)
-    return configs.map((config) => ({
-      country: config.id,
-      label: config.label,
-      interface: config.file.replace(/\.conf$/i, ""),
-    }))
-
-  return Object.entries(legacyFiles).map(([country, file]) => ({
-    country,
-    label: lookup(knownLabels, country) ?? pretty(file),
-    interface: file.replace(/\.conf$/i, ""),
-  }))
-}
-
-/** The tunnel that is up, if any. Linux answers from `/sys/class/net` without root. */
-export async function activeTunnel(paths?: Paths) {
-  const tunnels = knownTunnels(paths)
-
-  if (process.platform === "win32") {
-    const running = await windowsRunningTunnels()
-
-    for (const tunnel of tunnels) {
-      if (running.has(tunnel.interface))
-        return { country: tunnel.country, interface: tunnel.interface, label: tunnel.label }
-    }
-
-    return undefined
-  }
-
-  for (const tunnel of tunnels) {
-    if (existsSync(join("/sys/class/net", tunnel.interface)))
-      return { country: tunnel.country, interface: tunnel.interface, label: tunnel.label }
-  }
-
-  return undefined
-}
-
-/** Tunnel services are named `WireGuardTunnel$<interface>`; one query answers for every config. */
-async function windowsRunningTunnels() {
-  const result = await runPowerShell(
-    `Get-Service -Name '${WINDOWS_SERVICE_PREFIX}*' -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Running' } | ForEach-Object { $_.Name }`,
-  )
-
-  if (!result.ok) return new Set<string>()
-
-  return new Set(
-    result.stdout
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.startsWith(WINDOWS_SERVICE_PREFIX))
-      .map((line) => line.slice(WINDOWS_SERVICE_PREFIX.length)),
-  )
-}
-
-function windowsWireguardCandidates() {
-  const programFiles = process.env.ProgramFiles
-  const programFilesX86 = process.env["ProgramFiles(x86)"]
-  const localAppData = process.env.LOCALAPPDATA
-
-  return [
-    programFiles ? join(programFiles, "WireGuard", "wireguard.exe") : undefined,
-    programFilesX86 ? join(programFilesX86, "WireGuard", "wireguard.exe") : undefined,
-    localAppData ? join(localAppData, "Programs", "WireGuard", "wireguard.exe") : undefined,
-  ].filter((candidate): candidate is string => candidate !== undefined)
-}
-
-/** `wg-quick` ships with wireguard-tools; distributions disagree only about which bin directory holds it. */
-function wgQuick() {
-  return WG_QUICK.find((candidate) => existsSync(candidate))
-}
-
-/** Whether the platform's tunnel tool exists, so the window can warn before a run rather than after. */
-export async function wireguardInstallation(paths: WireguardPaths): Promise<WireguardInstallation> {
-  if (process.platform !== "win32") {
-    const executable = wgQuick()
-
-    return executable
-      ? { installed: true, executable, configDir: paths.wireguard }
-      : { installed: false, configDir: paths.wireguard }
-  }
-
-  const installed = windowsWireguardCandidates().find((candidate) => existsSync(candidate))
-
-  if (installed) return { installed: true, executable: installed, configDir: paths.wireguard }
-
-  // The installer can put WireGuard on PATH without using the default directory.
-  const found = await runPowerShell("(Get-Command wireguard.exe -ErrorAction SilentlyContinue).Source")
-  const executable = found.ok ? found.stdout.trim().split(/\r?\n/)[0]?.trim() : undefined
-
-  if (executable) return { installed: true, executable, configDir: paths.wireguard }
-
-  return { installed: false, configDir: paths.wireguard }
+/** The tunnel runtime is one userspace binary: it needs no driver, service or administrator rights. */
+export function tunnelInstallation(executable: string | undefined, paths: WireguardPaths): TunnelInstallation {
+  return executable
+    ? { installed: true, executable, configDir: paths.wireguard }
+    : { installed: false, configDir: paths.wireguard }
 }
 
 /** Creating the directory up front lets the dialog offer to open an otherwise-missing folder. */
@@ -269,10 +183,10 @@ export type WireguardImport =
     }
 
 /**
- * Copies a downloaded `.conf` into the config directory under a name both tunnel tools accept. The
- * renderer sends either a picked path or, when a dropped file has no native path, its text.
- * ProtonVPN comments the server name (`# US-FREE#86`) above the peer, so one downloaded as
- * `wg0.conf` still lands as `us-free-86.conf` and gets the same label as an existing config.
+ * Copies a downloaded `.conf` into the config directory. The renderer sends either a picked path or,
+ * when a dropped file has no native path, its text. ProtonVPN comments the server name
+ * (`# US-FREE#86`) above the peer, so one downloaded as `wg0.conf` still lands as `us-free-86.conf`
+ * and gets the same label as an existing config.
  */
 export async function importWireguardConfig(
   paths: WireguardPaths,
@@ -339,7 +253,7 @@ function parseConfig(text: string) {
   return { server }
 }
 
-/** `NL-FREE#239`, `nl-free-239.conf` and `US-FREE#86.conf` all become a safe interface name. */
+/** `NL-FREE#239`, `nl-free-239.conf` and `US-FREE#86.conf` all become a safe config name. */
 function interfaceName(value: string) {
   const server = /([a-z]{2})-free#?(\d+)/i.exec(value)
   const base = server ? `${server[1]}-free-${server[2]}` : value.replace(/\.conf$/i, "")
@@ -347,21 +261,60 @@ function interfaceName(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, "-")
     .replace(/^[-_]+|[-_]+$/g, "")
-    .slice(0, MAX_INTERFACE_LENGTH)
+    .slice(0, 15)
     .replace(/[-_]+$/g, "")
 
   return clean || "wireguard"
 }
 
-export async function publicIP() {
-  if (Date.now() - cached.at < IP_TTL_MS) return cached.value
+/**
+ * The exact config the userspace proxy reads. `WGConfig` keeps the user's `.conf` as the single
+ * source, and `[http]` exposes a loopback-only CONNECT proxy: traffic that uses it crosses the
+ * tunnel, while the system's own interfaces, routes and DNS are untouched.
+ */
+export function tunnelConfig(wireguard: string, port: number) {
+  return ["WGConfig = " + wireguard, "", "[http]", `BindAddress = 127.0.0.1:${port}`, ""].join("\n")
+}
 
-  const value = await fetch(IP_ENDPOINT, { signal: AbortSignal.timeout(4_000) })
-    .then((response) => (response.ok ? response.text() : undefined))
-    .then((text) => text?.trim())
-    .catch(() => undefined)
+/** The environment that routes a process through the app-scoped tunnel, or nothing when it is off. */
+export function tunnelEnvironment(): Readonly<Record<string, string>> {
+  if (!active) return {}
 
-  cached = { value, at: Date.now() }
+  const proxy = active.proxy
+
+  return {
+    HTTP_PROXY: proxy,
+    HTTPS_PROXY: proxy,
+    ALL_PROXY: proxy,
+    http_proxy: proxy,
+    https_proxy: proxy,
+    all_proxy: proxy,
+  }
+}
+
+export type TunnelStatus = {
+  readonly connected: boolean
+  readonly country?: string
+  readonly proxy?: string
+}
+
+export function tunnelStatus(): TunnelStatus {
+  if (!active) return { connected: false }
+
+  return { connected: true, country: active.country, proxy: active.proxy }
+}
+
+export async function publicIP(proxy?: string) {
+  if (cached.proxy === proxy && Date.now() - cached.at < IP_TTL_MS) return cached.value
+
+  const value = proxy
+    ? await throughProxy(proxy, 8_000)
+    : await fetch(IP_ENDPOINT, { signal: AbortSignal.timeout(4_000) })
+        .then((response) => (response.ok ? response.text() : undefined))
+        .then((text) => text?.trim())
+        .catch(() => undefined)
+
+  cached = { proxy, value, at: Date.now() }
 
   return value
 }
@@ -370,105 +323,145 @@ export type Rotation =
   | { readonly ok: true; readonly ip: string | undefined }
   | {
       readonly ok: false
-      readonly reason:
-        | "invalid-password"
-        | "elevation-required"
-        | "missing-config"
-        | "missing-wireguard"
-        | "unsupported"
-        | "failed"
+      readonly reason: "missing-config" | "missing-wireguard" | "unsupported" | "failed"
       readonly message: string
     }
 
-/** Brings down every known tunnel and raises the selected one, in one elevated call. */
-export async function rotate(paths: Paths, country: string, password?: string): Promise<Rotation> {
+/**
+ * Starts the selected config as a userspace tunnel and exposes it on a loopback HTTP proxy. Every
+ * known system tunnel is left alone; only a process that is handed this proxy uses the new exit.
+ */
+export async function rotate(paths: Paths, country: string, executable: string | undefined): Promise<Rotation> {
   const target = resolveConfig(paths, country)
 
   if (!target || !(await exists(target.path)))
     return { ok: false, reason: "missing-config", message: `Missing WireGuard config: ${country}` }
 
-  if (process.platform === "win32") return rotateWindows(paths, target)
-
-  if (process.platform !== "linux")
+  if (!maintenanceSupported())
     return {
       ok: false,
       reason: "unsupported",
       message: "Tunnel rotation is wired for Linux and Windows only",
     }
 
-  const executable = wgQuick()
-
   if (!executable)
     return {
       ok: false,
       reason: "missing-wireguard",
-      message: "WireGuard is required: install wireguard-tools so wg-quick exists",
+      message: "The bundled userspace tunnel runtime is missing; reinstall the app",
     }
 
-  const existing = knownTunnels(paths)
-    .map((tunnel) => join(paths.wireguard, `${tunnel.interface}.conf`))
-    .filter((path) => existsSync(path))
+  await stopTunnel()
 
-  const script = [
-    'target="$1"',
-    "shift",
-    `for config in "$@"; do "${executable}" down "$config" >/dev/null 2>&1 || true; done`,
-    `"${executable}" up "$target"`,
-  ].join("\n")
+  const port = await freePort()
+  const directory = await mkdtemp(join(tmpdir(), "tekucode-tunnel-"))
+  const file = join(directory, "tunnel.conf")
+  const proxy = `http://127.0.0.1:${port}`
 
-  const result = await runElevated(script, [target.path, ...existing], password)
+  await writeFile(file, tunnelConfig(target.path, port), { mode: 0o600 })
 
-  if (!result.ok) return result
+  const child = spawn(executable, ["-c", file, "-s"], { stdio: "ignore", windowsHide: true })
+  let spawnError: Error | undefined
 
-  return settle()
+  child.once("error", (error) => {
+    spawnError = error
+  })
+
+  active = { country: target.id, proxy, child, directory }
+
+  child.once("exit", () => {
+    if (active?.child !== child) return
+
+    active = undefined
+    cached = { proxy: undefined, value: undefined, at: 0 }
+  })
+
+  const ip = await settleProxy(proxy, () => spawnError !== undefined)
+
+  if (!ip) {
+    const message = spawnError instanceof Error ? spawnError.message : "The tunnel did not answer"
+    await stopTunnel()
+
+    return { ok: false, reason: "failed", message }
+  }
+
+  cached = { proxy, value: ip, at: Date.now() }
+
+  return { ok: true, ip }
 }
 
-async function rotateWindows(paths: Paths, target: WireguardConfig): Promise<Rotation> {
-  const installation = await wireguardInstallation(paths)
+/** Stops the userspace tunnel and its proxy. System tunnels never started, so nothing else is touched. */
+export async function stopTunnel() {
+  const current = active
 
-  if (!installation.installed || !installation.executable)
-    return {
-      ok: false,
-      reason: "missing-wireguard",
-      message: "WireGuard for Windows is required to rotate tunnels",
-    }
+  active = undefined
+  cached = { proxy: undefined, value: undefined, at: 0 }
 
-  // Include tunnels whose config file was removed, so a stale service cannot keep the old exit.
-  const running = await windowsRunningTunnels()
+  if (!current) return
 
-  const existing = [
-    ...new Set([
-      ...knownTunnels(paths)
-        .map((tunnel) => tunnel.interface)
-        .filter((name) => existsSync(join(paths.wireguard, `${name}.conf`))),
-      ...running,
-    ]),
-  ]
+  current.child.kill()
+  // Windows keeps the config file locked while the process is alive, so wait for it to leave before
+  // deleting the directory; this also reaps the child instead of leaving a zombie until app quit.
+  await new Promise<void>((resolve) => {
+    if (current.child.exitCode !== null || current.child.signalCode !== null) return resolve()
 
-  const result = await runElevatedPowerShell(windowsTunnelScript(installation.executable, target.path, existing))
-
-  if (!result.ok) return result
-
-  return settle()
+    current.child.once("exit", () => resolve())
+    setTimeout(resolve, 2_000).unref()
+  })
+  await rm(current.directory, { recursive: true, force: true }).catch(() => undefined)
 }
 
-/** Exported for tests: the exact PowerShell the elevated process runs. */
-export function windowsTunnelScript(executable: string, target: string, existing: readonly string[]) {
-  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
+async function settleProxy(proxy: string, failed: () => boolean) {
+  const deadline = Date.now() + TUNNEL_SETTLE_MS
 
-  return [
-    "$ErrorActionPreference = 'Stop'",
-    `$wireguard = ${quote(executable)}`,
-    ...existing.map((name) => `& $wireguard /uninstalltunnelservice ${quote(name)} *> $null`),
-    `& $wireguard /installtunnelservice ${quote(target)}`,
-    "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
-    "exit 0",
-  ].join("\n")
+  while (Date.now() < deadline) {
+    if (failed()) return undefined
+
+    const ip = await throughProxy(proxy, 2_000)
+
+    if (ip) return ip
+
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+
+  return undefined
 }
 
-async function settle(): Promise<Rotation> {
-  await new Promise((resolve) => setTimeout(resolve, TUNNEL_SETTLE_MS))
-  cached = { value: undefined, at: 0 }
+/** One HTTPS request through the tunnel's CONNECT proxy; resolves undefined on any failure. */
+function throughProxy(proxy: string, timeout: number) {
+  return new Promise<string | undefined>((resolve) => {
+    const request = https.get(IP_ENDPOINT, { agent: new HttpsProxyAgent(proxy), timeout }, (response) => {
+      if (response.statusCode !== 200) {
+        response.resume()
+        resolve(undefined)
 
-  return { ok: true, ip: await publicIP() }
+        return
+      }
+
+      let body = ""
+
+      response.setEncoding("utf8")
+      response.on("data", (chunk: string) => (body += chunk))
+      response.on("end", () => resolve(body.trim() || undefined))
+    })
+
+    request.on("timeout", () => request.destroy())
+    request.on("error", () => resolve(undefined))
+  })
+}
+
+/** A loopback port the tunnel can bind; the kernel picks it, so two runs never collide. */
+function freePort() {
+  return new Promise<number>((resolve, reject) => {
+    const server = createServer()
+
+    server.unref()
+    server.once("error", reject)
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address()
+      const port = typeof address === "object" && address !== null ? address.port : 0
+
+      server.close(() => resolve(port))
+    })
+  })
 }

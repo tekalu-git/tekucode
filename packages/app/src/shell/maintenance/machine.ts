@@ -20,7 +20,6 @@ export type Form = {
   readonly backup: boolean
   readonly rotate: boolean
   readonly country: string
-  readonly password: string
 }
 
 export type State =
@@ -56,7 +55,7 @@ export type Event =
 export function initialState(status?: MaintenanceStatus): State {
   const country = status?.vpn.country ?? status?.configs[0]?.id ?? "nl"
 
-  return { status: "idle", form: { backup: true, rotate: true, country, password: "" } }
+  return { status: "idle", form: { backup: true, rotate: true, country } }
 }
 
 export function transition(state: State, event: Event): State {
@@ -123,10 +122,6 @@ export function isRunning(state: State) {
 
 /** The failure copy key for a reason main reported, with the raw message as the fallback detail. */
 export function failureKey(reason: MaintenanceFailure | undefined) {
-  if (reason === "invalid-password") return "maintenance.dialog.password.invalid" as const
-
-  if (reason === "elevation-required") return "maintenance.dialog.elevation" as const
-
   if (reason === "busy") return "maintenance.dialog.busy" as const
 
   if (reason === "unsupported") return "maintenance.dialog.unsupported" as const

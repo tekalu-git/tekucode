@@ -125,9 +125,19 @@ test("shared packaging defaults", async () => {
   expect(config.nsis?.include).toBe(include)
   expect(await Bun.file(include).exists()).toBe(true)
   expect(config.files).toContain("!resources/opencode-cli*")
+  // The userspace tunnel runtime is a sidecar next to the asar, like the CLI.
+  expect(config.files).toContain("!resources/wireproxy*")
   expect(config.extraResources).toEqual([
-    { from: "resources/", to: "", filter: ["opencode-cli", "opencode-cli.exe", "opencode-cli.version"] },
+    {
+      from: "resources/",
+      to: "",
+      filter: ["opencode-cli", "opencode-cli.exe", "opencode-cli.version", "wireproxy", "wireproxy.exe"],
+    },
+    { from: "resources/icons/", to: "icons", filter: ["*.png"] },
   ])
+  const filter = trimFilter(import.meta.dirname, config)
+  expect(filter(path.join(import.meta.dirname, "resources/wireproxy"), statSync(import.meta.filename))).toBe(false)
+  expect(filter(path.join(import.meta.dirname, "resources/wireproxy.exe"), statSync(import.meta.filename))).toBe(false)
 })
 
 test("trims external dependencies without excluding runtime files", () => {

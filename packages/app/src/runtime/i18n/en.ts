@@ -1478,18 +1478,18 @@ export const dict = {
   "usage.retry": "Try again",
   "maintenance.bar.checking": "Checking tunnel…",
   "maintenance.bar.direct": "Direct connection",
-  "maintenance.bar.vpn": "{{country}} tunnel",
+  "maintenance.bar.vpn": "{{country}} tunnel · TekuCode only",
   "maintenance.bar.action": "Clean slate",
   "maintenance.bar.open": "Open clean slate",
   "maintenance.bar.limit": "Free limit reached · reset required",
   "maintenance.bar.limitReset": "Free limit reached · resets {{time}}",
   "maintenance.bar.unsupported": "Maintenance unavailable on this platform",
-  "maintenance.bar.wireguardMissing": "WireGuard not installed",
+  "maintenance.bar.wireguardMissing": "Tunnel runtime missing",
   "maintenance.dialog.title": "Clean slate",
   "maintenance.dialog.section.conversations": "Conversations",
   "maintenance.dialog.section.network": "Network",
   "maintenance.dialog.description":
-    "Removes sessions, projects, accounts, provider connections, drafts, attachments, saved state and caches, then rotates the VPN tunnel. Executables, app settings and WireGuard configs stay. The app reloads automatically when it finishes.",
+    "Removes sessions, projects, accounts, provider connections, drafts, attachments, saved state and caches, then routes TekuCode through the selected tunnel. The rest of the system keeps its own connection. Executables, app settings and WireGuard configs stay. The app reloads automatically when it finishes.",
   "maintenance.dialog.warning":
     "Running turns are cancelled. Sessions, drafts, saved state and provider connections are deleted.",
   "maintenance.dialog.backup.toggle": "Save conversations before wiping",
@@ -1537,7 +1537,8 @@ export const dict = {
   "maintenance.dialog.restore.failed": "The conversations could not be restored.",
   "maintenance.dialog.rotate": "Rotate IP after wipe",
   "maintenance.dialog.rotate.description":
-    "Brings every known tunnel down and raises the selected WireGuard config. Add a new ProtonVPN .conf here without leaving the app.",
+    "Routes TekuCode's model traffic through the selected WireGuard config in a userspace tunnel. No system route, DNS setting or other app is changed. Add a new ProtonVPN .conf here without leaving the app.",
+  "maintenance.dialog.scope": "Only TekuCode uses this tunnel. Other apps keep their normal connection.",
   "maintenance.dialog.country": "VPN exit",
   "maintenance.dialog.noConfigs":
     "No WireGuard configs yet. Download one from ProtonVPN (Account → Downloads → WireGuard configuration) and add it below.",
@@ -1557,15 +1558,9 @@ export const dict = {
   "maintenance.dialog.configDir.description":
     "Every .conf in this folder is offered as an exit. You do not need to put files here by hand.",
   "maintenance.dialog.openConfigDir": "Open folder",
-  "maintenance.dialog.wireguard.title": "WireGuard is required",
-  "maintenance.dialog.wireguard.windows":
-    "Tunnel rotation uses the WireGuard for Windows app. Install it, then reopen this dialog so the app can find it.",
-  "maintenance.dialog.wireguard.linux":
-    "Tunnel rotation needs the wireguard-tools package (the wg-quick command). Install it with your distribution's package manager, then reopen this dialog.",
-  "maintenance.dialog.wireguard.install": "Get WireGuard",
-  "maintenance.dialog.password": "sudo password",
-  "maintenance.dialog.password.placeholder": "Required to bring the tunnel up",
-  "maintenance.dialog.password.description": "Used once for this run. It is never stored.",
+  "maintenance.dialog.wireguard.title": "Tunnel runtime missing",
+  "maintenance.dialog.wireguard.missing":
+    "This build is missing its bundled userspace tunnel runtime. Reinstall the app, or run the desktop build script to download it.",
   "maintenance.dialog.cancel": "Cancel",
   "maintenance.dialog.start": "Wipe & rotate",
   "maintenance.dialog.retry": "Wipe & rotate again",
@@ -1577,19 +1572,12 @@ export const dict = {
   "maintenance.dialog.busy": "A wipe is already running.",
   "maintenance.dialog.unsupported": "Clean slate is wired for Linux and Windows only.",
   "maintenance.dialog.unsupported.title": "Not available on this platform",
-  "maintenance.dialog.elevation":
-    "Administrator permission was not granted. Enter your sudo password, or approve the system prompt.",
-  "maintenance.dialog.elevation.windows":
-    "Windows asks for administrator approval when a tunnel changes. Approve the UAC prompt to continue; no password is stored.",
-  "maintenance.dialog.elevation.windowsDenied":
-    "Administrator permission was not granted. Approve the Windows UAC prompt to bring the tunnel up.",
-  "maintenance.dialog.password.invalid": "sudo rejected that password.",
   "maintenance.dialog.missingConfig":
     "That WireGuard config is missing. Add its .conf file again from this dialog and try again.",
   "maintenance.dialog.missingWireguard":
-    "WireGuard is not installed, so the tunnel cannot be rotated. Install it and try again.",
+    "The tunnel runtime is missing, so the tunnel could not be started. Reinstall the app and try again.",
   "maintenance.step.backup": "Save conversations",
-  "maintenance.step.vpn": "Rotate tunnel",
+  "maintenance.step.vpn": "Route tunnel",
   "maintenance.step.stop": "Stop local server",
   "maintenance.step.snapshot": "Snapshot databases",
   "maintenance.step.wipe": "Clear data and caches",

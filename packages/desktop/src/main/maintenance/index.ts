@@ -1,7 +1,7 @@
 import { Context, Effect, Exit, Layer, Ref } from "effect"
 import { Cause } from "effect"
 import type { OpenCodeClient } from "@opencode/client"
-import { session } from "electron"
+import { app, session } from "electron"
 import { mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import type {
@@ -24,13 +24,15 @@ import {
   remove,
   restoreDatabase,
   secretFiles,
+  servicePort,
   snapshotDatabase,
+  writeServicePort,
 } from "./files"
 import { initialState, transition, type Event, type Progress } from "./machine"
 import { maintenancePaths } from "./paths"
+import { tunnelRuntime } from "./runtime"
 import { exportSessions, listBackups, pruneBackups, restoreSessions, type BackupOptions } from "./sessions"
 import {
-  activeTunnel,
   discoverConfigs,
   ensureConfigDir,
   importWireguardConfig,
@@ -38,7 +40,9 @@ import {
   maintenanceSupported,
   publicIP,
   rotate,
-  wireguardInstallation,
+  stopTunnel,
+  tunnelInstallation,
+  tunnelStatus,
 } from "./vpn"
 
 export * as Maintenance from "./index"
@@ -46,7 +50,6 @@ export * as Maintenance from "./index"
 export type WipeOptions = {
   readonly rotate: boolean
   readonly country?: string
-  readonly password?: string
   readonly backup: boolean
   /** What the pre-wipe export keeps; omitted means the full transcript. */
   readonly backupOptions?: BackupOptions
@@ -54,16 +57,6 @@ export type WipeOptions = {
 
 /** How many conversation backups stay on disk; a full transcript with inline media is large. */
 const backupKeep = 10
-
-type MutableStatus = {
-  supported: boolean
-  vpn: {
-    connected: boolean
-    country?: string
-    interface?: string
-    ip?: string
-  }
-}
 
 export interface Interface {
   readonly status: Effect.Effect<MaintenanceStatus>
@@ -90,6 +83,10 @@ export const layer = Layer.effect(
     const running = yield* Ref.make(false)
     const background = yield* BackgroundService.Service
     const storage = yield* DesktopStorage.Service
+
+    // The tunnel is a child of this process, so it leaves with the app; no system route ever needs
+    // restoring and nothing else on the machine notices it.
+    app.once("will-quit", () => void stopTunnel())
 
     // Backup, restore and wipe all touch the same database and the same backup folder, so one run at a
     // time: a second click reports busy instead of racing the first.
@@ -231,22 +228,17 @@ const status = Effect.fn("Maintenance.status")(function* () {
   yield* Effect.promise(() => ensureConfigDir(paths))
 
   const configs = discoverConfigs(paths).map((config) => ({ id: config.id, label: config.label, file: config.file }))
-  const tunnel = yield* Effect.promise(() => activeTunnel(paths))
-  const wireguard = yield* Effect.promise(() => wireguardInstallation(paths))
-  const ip = yield* Effect.promise(() => publicIP())
+  const tunnel = tunnelStatus()
+  const wireguard = tunnelInstallation(tunnelRuntime(), paths)
+  const ip = yield* Effect.promise(() => publicIP(tunnel.connected ? tunnel.proxy : undefined))
   const backups = yield* Effect.promise(() => listBackups(paths.sessionBackups))
-  const vpn: MutableStatus["vpn"] = { connected: tunnel !== undefined }
-
-  if (tunnel) {
-    vpn.country = tunnel.country
-    vpn.interface = tunnel.interface
+  const vpn = {
+    connected: tunnel.connected,
+    ...(tunnel.country ? { country: tunnel.country } : {}),
+    ...(ip ? { ip } : {}),
   }
 
-  if (ip) vpn.ip = ip
-
-  const result: MutableStatus = { supported: true, vpn }
-
-  return { ...result, platform, wireguard, configs, backups } satisfies MaintenanceStatus
+  return { supported: true, platform, vpn, wireguard, configs, backups } satisfies MaintenanceStatus
 })
 
 /** A client for the app's own server, with the credential only main holds. */
@@ -268,6 +260,9 @@ const perform = Effect.fn("Maintenance.wipe")(function* (
   storage: DesktopStorage.Interface,
 ) {
   const paths = maintenancePaths()
+  // The config directory goes away, but the service port is installation configuration, not identity:
+  // without it the restart falls back to the default port even when the user moved the service elsewhere.
+  const port = yield* Effect.promise(() => servicePort(join(paths.config, "service.json")))
   let state = initialState()
   let backup: string | undefined
   let wiped = false
@@ -325,7 +320,7 @@ const perform = Effect.fn("Maintenance.wipe")(function* (
     const country = options.country
 
     if (!country) return fail("missing-config", "Choose a country to rotate the tunnel")
-    const rotation = yield* Effect.promise(() => rotate(paths, country, options.password))
+    const rotation = yield* Effect.promise(() => rotate(paths, country, tunnelRuntime()))
 
     if (!rotation.ok) return fail(rotation.reason, rotation.message)
 
@@ -350,7 +345,7 @@ const perform = Effect.fn("Maintenance.wipe")(function* (
       const { stop } = await import("@opencode/client/service")
       await stop({ file: paths.serviceFile, pty: "clear" }).catch(() => undefined)
     })
-    yield* Effect.promise(() => pkillServers())
+    yield* Effect.promise(() => pkillServers(join(app.getPath("userData"), "cli")))
     stopped = true
     dispatch({ type: "step.finished" })
 
@@ -395,6 +390,7 @@ const perform = Effect.fn("Maintenance.wipe")(function* (
       }
 
       await copyTree(join(backup, "config"), paths.config, secretFiles)
+      if (port !== undefined) await writeServicePort(join(paths.config, "service.json"), port)
     })
     // Tabs, drafts, attachments, persisted state and lockouts all live in the desktop's own store.
     storage.clearUserData()

@@ -4,6 +4,7 @@ import { cp, mkdir, readdir, rm } from "node:fs/promises"
 import path from "node:path"
 import { getConfig } from "../electron-builder.config"
 import { getCurrentCli, resolveChannel } from "./utils"
+import { ensureWireproxy } from "./wireproxy"
 
 // Packages the built app (out/) for OPENCODE_TARGET into dist/desktop at the repository root, unsigned:
 // macOS: the .app as a tarball. Windows: the unpacked app in app/, or with OPENCODE_DESKTOP_APP, the NSIS
@@ -25,6 +26,9 @@ const app = process.env.OPENCODE_DESKTOP_APP
 const flags = [`--${os}`, `--${cli.cpu}`, "--publish", "never", "--config", "electron-builder.config.ts"]
 
 process.chdir(dir)
+
+// Packaging a prebuilt app skips `build`, so make sure the tunnel runtime is next to the CLI either way.
+await ensureWireproxy()
 
 await rm("dist", { recursive: true, force: true })
 

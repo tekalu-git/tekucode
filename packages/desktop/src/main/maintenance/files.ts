@@ -1,7 +1,8 @@
 import { DatabaseSync } from "node:sqlite"
 import { spawn } from "node:child_process"
-import { cp, mkdir, readdir, rm, stat } from "node:fs/promises"
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises"
 import { basename, dirname, join } from "node:path"
+import { Option, Schema } from "effect"
 import { runPowerShell } from "./elevate"
 
 /** Tables that record schema progress rather than anything a person created. */
@@ -77,6 +78,26 @@ export async function remove(path: string) {
   await rm(path, { recursive: true, force: true })
 }
 
+const ServiceConfig = Schema.Struct({ port: Schema.optional(Schema.Int) })
+const decodeServiceConfig = Schema.decodeUnknownOption(Schema.fromJsonString(ServiceConfig))
+
+/**
+ * The port the CLI listens on, which lives in the config directory the wipe removes. It is
+ * configuration rather than identity, so the wipe reads it first and puts it back afterwards: a
+ * custom port must keep the service reachable when the default port belongs to something else.
+ */
+export async function servicePort(file: string) {
+  const text = await readFile(file, "utf8").catch(() => undefined)
+  if (text === undefined) return undefined
+
+  return Option.getOrUndefined(decodeServiceConfig(text))?.port
+}
+
+export async function writeServicePort(file: string, port: number) {
+  await mkdir(dirname(file), { recursive: true })
+  await writeFile(file, JSON.stringify({ port }))
+}
+
 /** Keeps `~/.opencode/bin`, which holds the CLI's installed executables, and drops the rest. */
 export async function clearLegacy(path: string) {
   if (!(await exists(path))) return
@@ -96,15 +117,24 @@ export async function copyTree(source: string, target: string, skip?: ReadonlySe
   })
 }
 
-/** Stops any server this app did not register, matching what the wiper's `pkill` line covers. */
-export function pkillServers() {
+/**
+ * The `pkill -f` expression matching only the servers staged under `cliRoot`. The sidecar always runs
+ * from `<userData>/cli/<stage>/opencode-cli serve --service`, so anchoring the match there leaves
+ * Electron's own helper processes and every other TekuCode install on the machine alone.
+ */
+export function serverPattern(cliRoot: string) {
+  return `^${cliRoot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/[^ ]*/opencode-cli serve( |$)`
+}
+
+/** Stops the servers this app staged, so a wipe never signals another running instance. */
+export function pkillServers(cliRoot: string) {
   if (process.platform === "win32")
     return runPowerShell(
-      "Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*opencode*' -and $_.CommandLine -match 'serve' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+      `Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like '${cliRoot.replaceAll("'", "''")}*' -and $_.CommandLine -match ' serve( |$)' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`,
     ).then(() => undefined)
 
   return new Promise<void>((resolve) => {
-    const child = spawn("pkill", ["-f", "opencode.*serve"], { stdio: "ignore" })
+    const child = spawn("pkill", ["-f", serverPattern(cliRoot)], { stdio: "ignore" })
 
     child.on("error", () => resolve())
     child.on("close", () => resolve())

@@ -86,6 +86,8 @@ const getBase = (appId: string): Configuration => {
       "!out/**/*.map",
       "resources/**/*",
       "!resources/opencode-cli*",
+      // The userspace tunnel runtime ships as a sidecar next to the asar, not inside it.
+      "!resources/wireproxy*",
       // Keep only the target platform's node-pty prebuild when cross-packaging with --cpu=*.
       ...CLI_BINARIES.filter((item) => item.os !== target.os || item.cpu !== target.cpu).map(
         (item) => `!**/node_modules/@lydell/node-pty-${item.os}-${item.cpu}{,/**/*}`,
@@ -109,7 +111,7 @@ const getBase = (appId: string): Configuration => {
       {
         from: "resources/",
         to: "",
-        filter: ["opencode-cli", "opencode-cli.exe", "opencode-cli.version"],
+        filter: ["opencode-cli", "opencode-cli.exe", "opencode-cli.version", "wireproxy", "wireproxy.exe"],
       },
       // The early window and the dock icon load these from process.resourcesPath, next to the asar.
       { from: "resources/icons/", to: "icons", filter: ["*.png"] },

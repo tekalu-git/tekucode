@@ -19,7 +19,6 @@ export const maintenanceHandlers = MaintenanceRpcs.toLayer(
           {
             rotate: payload.rotate,
             country: payload.country,
-            password: payload.password,
             backup: payload.backup,
             backupOptions: payload.backupOptions,
           },

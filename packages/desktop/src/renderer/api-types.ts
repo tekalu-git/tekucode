@@ -112,7 +112,6 @@ export type MaintenanceStatusData = {
   vpn: {
     connected: boolean
     country?: string
-    interface?: string
     ip?: string
   }
   wireguard: {
@@ -127,7 +126,6 @@ export type MaintenanceStatusData = {
 export type MaintenanceWipeOptions = {
   rotate: boolean
   country?: string
-  password?: string
   backup: boolean
   backupOptions?: MaintenanceBackupOptionsData
 }
@@ -183,8 +181,6 @@ export type MaintenanceResultData = {
   reason?:
     | "busy"
     | "unsupported"
-    | "invalid-password"
-    | "elevation-required"
     | "missing-config"
     | "missing-wireguard"
     | "failed"
