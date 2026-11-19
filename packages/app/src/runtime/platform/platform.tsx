@@ -230,6 +230,9 @@ type PlatformBase = {
   /** Turn the native spellchecker on or off (desktop only) */
   setSpellcheckEnabled?(enabled: boolean): Promise<void>
 
+  /** Re-arm the first-run welcome tour so it shows the next time a window mounts (desktop only) */
+  replayOnboardingTour?(): void
+
   /** Run a desktop-only menu action from the app chrome */
   runDesktopMenuAction?(action: DesktopMenuAction): Promise<void> | void
 

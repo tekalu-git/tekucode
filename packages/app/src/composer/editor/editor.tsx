@@ -250,6 +250,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
       <form
         ref={composer}
         data-component="composer"
+        data-tour="composer"
         data-dock-border-underlay={props.borderUnderlay ? "true" : undefined}
         class="group/composer relative w-full overflow-clip rounded-xl bg-v2-background-bg-base"
         style={{ height: historyHeight() === undefined ? undefined : `${historyHeight()}px` }}
@@ -484,12 +485,14 @@ export function ComposerEditor(props: ComposerEditorProps) {
             <div ref={controlsContent} class="flex h-full w-max min-w-full items-center gap-0.5">
               <Show when={view.agent} keyed>
                 {(control) => (
-                  <ComposerEditorConfiguredSelect
-                    fitMenuToOptions
-                    title={i18n.t("ui.promptInput.chooseAgent")}
-                    keybind={["Mod", "."]}
-                    control={control}
-                  />
+                  <span data-tour="agent" class="inline-flex">
+                    <ComposerEditorConfiguredSelect
+                      fitMenuToOptions
+                      title={i18n.t("ui.promptInput.chooseAgent")}
+                      keybind={["Mod", "."]}
+                      control={control}
+                    />
+                  </span>
                 )}
               </Show>
               <Show when={props.modelControlsVisible ?? true}>

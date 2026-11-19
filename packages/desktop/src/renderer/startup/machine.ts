@@ -64,6 +64,7 @@ export type StartupState =
       readonly locale: LocaleGate
       readonly themeApplied: boolean
       readonly sidecar: ServerReadyData
+      readonly onboardingDone: boolean
     }
   | {
       readonly status: "revealed"
@@ -71,6 +72,7 @@ export type StartupState =
       readonly locale: LocaleGate
       readonly themeApplied: boolean
       readonly sidecar: ServerReadyData
+      readonly onboardingDone: boolean
     }
   | {
       readonly status: "failed"
@@ -220,6 +222,7 @@ function step(state: StartupState, event: StartupEvent): StartupTransition {
         locale: state.locale,
         themeApplied: state.themeApplied,
         sidecar: state.sidecar,
+        onboardingDone: state.onboardingDone,
       })
 
     if (event.type === "route.changed" && event.route !== state.route) return to({ ...state, route: event.route })
@@ -291,7 +294,12 @@ function boot(state: Extract<StartupState, { status: "booting" }>, event: Startu
 
   // The server is up, so show the app with whatever else is still loading rather than the splash.
   if (event.type === "hydration.timed-out" && state.sidecar)
-    return beginReveal({ ...state, sidecar: state.sidecar, firstLaunch: state.firstLaunch ?? false })
+    return beginReveal({
+      ...state,
+      sidecar: state.sidecar,
+      firstLaunch: state.firstLaunch ?? false,
+      onboardingDone: false,
+    })
 
   return unchanged(state)
 }
@@ -332,6 +340,7 @@ function beginReveal(state: {
   readonly locale: LocaleGate
   readonly themeApplied: boolean
   readonly sidecar: ServerReadyData
+  readonly onboardingDone: boolean
 }): StartupTransition {
   // Under reduced motion the overlay has no transition to wait for.
   if (state.reducedMotion)
@@ -341,6 +350,7 @@ function beginReveal(state: {
       locale: state.locale,
       themeApplied: state.themeApplied,
       sidecar: state.sidecar,
+      onboardingDone: state.onboardingDone,
     })
 
   return to({
@@ -351,6 +361,7 @@ function beginReveal(state: {
     locale: state.locale,
     themeApplied: state.themeApplied,
     sidecar: state.sidecar,
+    onboardingDone: state.onboardingDone,
   })
 }
 
@@ -411,6 +422,13 @@ export function selectStartupRevealed(state: StartupState) {
 
 export function selectInterfaceMounted(state: StartupState) {
   return state.status === "hydrating" || state.status === "fading" || state.status === "revealed"
+}
+
+/** First-launch onboarding finished (or never applied), so the welcome tour may start. */
+export function selectOnboardingDone(state: StartupState) {
+  if (state.status === "booting" || state.status === "failed" || state.status === "disposed") return false
+
+  return state.onboardingDone
 }
 
 export function selectSidecar(state: StartupState) {

@@ -388,6 +388,7 @@ function NewSessionLocation(props: {
             <button
               type="button"
               data-action="prompt-project"
+              data-tour="project"
               aria-haspopup="dialog"
               aria-description={language.t("session.new.project.trigger.tooltip")}
               class={`${TRIGGER} min-w-0`}

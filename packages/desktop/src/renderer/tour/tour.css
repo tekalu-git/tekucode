@@ -1,0 +1,255 @@
+[data-component="onboarding-tour"] {
+  /* The card travels with a soft spring: quick out, tiny settle at the end, never a hard stop. */
+  --tour-spring: cubic-bezier(0.24, 1.16, 0.32, 1);
+  --tour-glide: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  /* The tour owns the window while it shows: clicks outside the card must not reach the UI underneath. */
+  cursor: default;
+}
+
+/* The dim around the hole: one huge shadow, so the target itself stays fully visible and interactive-looking. */
+[data-slot="tour-hole"] {
+  position: absolute;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px var(--v2-overlay-simple-overlay-scrim);
+  outline: 1px solid color-mix(in srgb, var(--v2-icon-icon-accent) 55%, transparent);
+  outline-offset: 0;
+  pointer-events: none;
+  animation: tour-dim-in 220ms ease-out both;
+  transition:
+    top 480ms var(--tour-spring),
+    left 480ms var(--tour-spring),
+    width 480ms var(--tour-spring),
+    height 480ms var(--tour-spring),
+    outline-color 240ms ease-out;
+}
+
+[data-slot="tour-scrim"] {
+  position: absolute;
+  inset: 0;
+  background: var(--v2-overlay-simple-overlay-scrim);
+  animation: tour-dim-in 220ms ease-out both;
+}
+
+[data-slot="tour-card"] {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--v2-border-border-base);
+  background: var(--v2-background-bg-layer-01);
+  box-shadow: var(--v2-elevation-floating);
+  animation: tour-card-in 260ms var(--tour-glide) both;
+  /* A moving card is the only thing on screen, so let the compositor keep it smooth. */
+  will-change: top, left, width;
+  transition:
+    top 560ms var(--tour-spring),
+    left 560ms var(--tour-spring),
+    width 420ms var(--tour-glide);
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--v2-border-border-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Each step remounts its copy, so it settles in from the side the card just travelled from. */
+[data-slot="tour-content"] {
+  display: flex;
+  flex-direction: column;
+  animation: tour-content-in 340ms var(--tour-glide) both;
+}
+
+[data-slot="tour-card"][data-placement="above"] [data-slot="tour-content"] {
+  animation-name: tour-content-in-up;
+}
+
+[data-slot="tour-card"][data-placement="center"] [data-slot="tour-content"] {
+  animation-name: tour-content-fade;
+}
+
+[data-slot="tour-copy"] {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 440;
+  line-height: 20px;
+  letter-spacing: -0.04px;
+  color: var(--v2-text-text-base);
+  text-wrap: pretty;
+}
+
+[data-slot="tour-dots"] {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  span {
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--v2-text-text-faint);
+    transition:
+      width 320ms var(--tour-spring),
+      background-color 220ms ease-out;
+
+    &[data-active] {
+      width: 14px;
+      background: var(--v2-icon-icon-accent);
+    }
+  }
+}
+
+[data-slot="tour-actions"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+[data-slot="tour-nav"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+/* First-run dialogs size to their content; the body keeps the same 16px inset as the header and footer. */
+[data-slot="dialog-body"].tour-dialog-body {
+  flex: 0 0 auto;
+  overflow: visible;
+  padding: 2px 16px 0;
+}
+
+[data-slot="tour-welcome"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0 10px;
+  color: var(--v2-text-text-base);
+}
+
+[data-slot="tour-folder-field"] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The path reads as a field, inset from the dialog edges instead of running border to border. */
+[data-slot="tour-folder-display"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--v2-border-border-base);
+  background: var(--v2-background-bg-layer-02);
+  color: var(--v2-icon-icon-muted);
+}
+
+[data-slot="tour-folder-path"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--v2-text-text-base);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+
+[data-slot="tour-folder-field"] [data-component="button-v2"] {
+  flex-shrink: 0;
+}
+
+[data-slot="tour-folder-empty"] {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--v2-text-text-muted);
+  text-wrap: pretty;
+}
+
+@keyframes tour-dim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tour-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tour-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tour-content-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tour-content-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="tour-hole"],
+  [data-slot="tour-card"],
+  [data-slot="tour-dots"] span {
+    transition: none;
+  }
+
+  [data-slot="tour-hole"],
+  [data-slot="tour-scrim"],
+  [data-slot="tour-card"],
+  [data-slot="tour-content"] {
+    animation: none;
+  }
+}

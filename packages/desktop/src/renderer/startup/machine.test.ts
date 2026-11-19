@@ -6,6 +6,7 @@ import {
   selectDrawingPaused,
   selectFirstLaunch,
   selectInterfaceMounted,
+  selectOnboardingDone,
   selectOverlayMounted,
   selectSidecar,
   selectStartupFailure,
@@ -114,6 +115,21 @@ describe("desktop startup", () => {
 
     expect(result.state.status).toBe("fading")
     expect(selectFirstLaunch(result.state)).toBe(true)
+  })
+
+  test("the welcome tour waits for the first launch to settle, then follows the reveal", () => {
+    expect(selectOnboardingDone(start({ firstLaunch: true }).state)).toBe(false)
+
+    const onboarding = replay(mounted, start({ firstLaunch: true }).state).state
+
+    expect(onboarding.status).toBe("hydrating")
+    expect(selectOnboardingDone(onboarding)).toBe(false)
+    expect(selectOnboardingDone(replay([{ type: "onboarding.settled" }], onboarding).state)).toBe(true)
+
+    const returning = replay([...mounted, { type: "tabs.ready" }]).state
+
+    expect(returning.status).toBe("fading")
+    expect(selectOnboardingDone(returning)).toBe(true)
   })
 
   test("removes the overlay when its transition never ends", () => {

@@ -386,6 +386,7 @@ export function InboxSessionList(props: {
       <div
         ref={container}
         data-slot="sidebar-inbox"
+        data-tour="inbox"
         aria-busy={props.loading}
         class="flex min-h-0 flex-1 flex-col"
         onFocusIn={(event) => {

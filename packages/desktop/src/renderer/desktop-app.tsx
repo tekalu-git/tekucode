@@ -32,6 +32,7 @@ import {
   selectFirstLaunch,
   selectFirstLaunchSplash,
   selectInterfaceMounted,
+  selectOnboardingDone,
   selectOverlayFading,
   selectOverlayMounted,
   selectSidecar,
@@ -44,6 +45,7 @@ import {
   type StartupEvent,
 } from "./startup/machine"
 import { LoadingSplash } from "./startup/splash"
+import { DesktopOnboardingTour } from "./tour"
 import { getLastActiveUrl } from "./window/route-storage"
 import { DesktopMemoryRouter } from "./window/router"
 
@@ -124,6 +126,10 @@ export function DesktopApp(props: { api: ElectronAPI; version: string }) {
               pending={selectFirstLaunch(startup.state())}
               revealed={selectStartupRevealed(startup.state())}
               dispatch={startup.dispatch}
+            />
+            <DesktopOnboardingTour
+              api={props.api}
+              ready={selectOnboardingDone(startup.state()) && selectStartupRevealed(startup.state())}
             />
             <DesktopEffects api={props.api} />
             <Suspense fallback={null}>

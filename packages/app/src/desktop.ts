@@ -14,6 +14,10 @@ export { useGlobal } from "./runtime/server/runtime"
 
 export { useTabs } from "./shell/tabs/tabs"
 
+export { useSettings, type TabLayout } from "./settings/model"
+
+export { InterfaceModeOptions } from "./settings/general/interface-mode-options"
+
 export { createDraftStore } from "./runtime/persistence/drafts"
 
 export { createNamespaceStorage, type NamespaceStorage } from "./runtime/persistence/namespace"

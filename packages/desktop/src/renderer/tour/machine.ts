@@ -3,10 +3,11 @@ export const TOUR_STEPS = ["composer", "model", "agent", "project", "tabs"] as c
 
 export type TourStep = (typeof TOUR_STEPS)[number]
 
-/** Everything the window shows: nothing, the welcome dialog, a highlighted step, the folder question, or closed. */
+/** Everything the window shows: nothing, the welcome dialog, the layout question, a highlighted step, the folder question, or closed. */
 export type TourState =
   | { readonly status: "idle" }
   | { readonly status: "welcome" }
+  | { readonly status: "layout" }
   | { readonly status: "step"; readonly index: number }
   | { readonly status: "folder" }
   | { readonly status: "done" }
@@ -47,9 +48,11 @@ export function transitionTour(state: TourState, event: TourEvent): TourTransiti
     case "start":
       if (state.status !== "welcome") return { state, effects: NO_EFFECTS }
 
-      return { state: { status: "step", index: 0 }, effects: NO_EFFECTS }
+      return { state: { status: "layout" }, effects: NO_EFFECTS }
 
     case "next": {
+      if (state.status === "layout") return { state: { status: "step", index: 0 }, effects: NO_EFFECTS }
+
       if (state.status !== "step") return { state, effects: NO_EFFECTS }
 
       if (state.index === TOUR_STEPS.length - 1) return { state: { status: "folder" }, effects: NO_EFFECTS }
@@ -58,18 +61,23 @@ export function transitionTour(state: TourState, event: TourEvent): TourTransiti
     }
 
     case "back": {
-      if (state.status === "folder") return { state: { status: "step", index: TOUR_STEPS.length - 1 }, effects: NO_EFFECTS }
+      if (state.status === "folder")
+        return { state: { status: "step", index: TOUR_STEPS.length - 1 }, effects: NO_EFFECTS }
+
+      if (state.status === "layout") return { state: { status: "welcome" }, effects: NO_EFFECTS }
+
       if (state.status !== "step") return { state, effects: NO_EFFECTS }
 
       return {
-        state: state.index === 0 ? { status: "welcome" } : { status: "step", index: state.index - 1 },
+        state: state.index === 0 ? { status: "layout" } : { status: "step", index: state.index - 1 },
         effects: NO_EFFECTS,
       }
     }
 
     // Skipping the tour keeps the folder question: it is the one setup choice left.
     case "skip":
-      if (state.status !== "welcome" && state.status !== "step") return { state, effects: NO_EFFECTS }
+      if (state.status !== "welcome" && state.status !== "layout" && state.status !== "step")
+        return { state, effects: NO_EFFECTS }
 
       return { state: { status: "folder" }, effects: NO_EFFECTS }
 
@@ -80,9 +88,9 @@ export function transitionTour(state: TourState, event: TourEvent): TourTransiti
   }
 }
 
-/** Whether the driver shows anything: the welcome, a step or the folder question. */
+/** Whether the driver shows anything: the welcome, the layout question, a step or the folder question. */
 export function selectTourVisible(state: TourState) {
-  return state.status === "welcome" || state.status === "step" || state.status === "folder"
+  return state.status === "welcome" || state.status === "layout" || state.status === "step" || state.status === "folder"
 }
 
 /** The anchor of the current step, if one is showing. */

@@ -829,6 +829,7 @@ export function TitlebarTabStrip(props: {
   return (
     <div
       data-slot={vertical() ? "vertical-tabs" : "titlebar-tabs"}
+      data-tour="tabs"
       data-orientation={vertical() ? "vertical" : "horizontal"}
       data-shortcut-hints={hints() ? "" : undefined}
       class="relative min-w-0"

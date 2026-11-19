@@ -196,6 +196,7 @@ function ComposerModelControl(props: {
             <Button
               ref={trigger}
               data-action="composer-model"
+              data-tour="model"
               data-control-type="dialog"
               variant="ghost-muted"
               size="normal"
@@ -229,6 +230,7 @@ function ComposerModelControl(props: {
                 class="min-w-0 max-w-[60cqw] justify-start ![font-weight:440]"
                 classList={{ "animate-in fade-in": shouldAnimate() }}
                 data-action="composer-model"
+                data-tour="model"
                 data-control-type="drawer"
               >
                 {content()}

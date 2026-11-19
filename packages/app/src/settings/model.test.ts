@@ -108,7 +108,7 @@ describe("settings schema", () => {
         mono: "",
         sans: "",
         terminal: "",
-        tabLayout: "horizontal",
+        tabLayout: "inbox",
         reduceMotion: "system",
       },
       keybinds: {},

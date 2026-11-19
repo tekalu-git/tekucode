@@ -8,18 +8,19 @@ import {
   selectTourVisible,
   TOUR_STEPS,
   transitionTour,
+  type TourEffect,
   type TourEvent,
   type TourState,
 } from "./machine"
 
 function run(state: TourState, ...events: TourEvent[]) {
-  return events.reduce(
+  return events.reduce<{ state: TourState; effects: readonly TourEffect[] }>(
     (result, event) => {
       const next = transitionTour(result.state, event)
 
       return { state: next.state, effects: [...result.effects, ...next.effects] }
     },
-    { state, effects: [] as { type: string }[] },
+    { state, effects: [] },
   )
 }
 
@@ -29,10 +30,11 @@ describe("onboarding tour", () => {
     expect(createTourState(false)).toBe(IDLE)
   })
 
-  test("walks welcome → steps → folder → done and persists completion once", () => {
+  test("walks welcome → layout → steps → folder → done and persists completion once", () => {
     const walked = run(
       { status: "welcome" },
       { type: "start" },
+      { type: "next" },
       ...TOUR_STEPS.map(() => ({ type: "next" }) as const),
     )
 
@@ -48,22 +50,33 @@ describe("onboarding tour", () => {
     expect(selectTourVisible(done.state)).toBe(false)
   })
 
-  test("skipping from the welcome or any step still asks where work should live", () => {
+  test("the layout question sits between the welcome and the first step", () => {
+    const layout = run({ status: "welcome" }, { type: "start" }).state
+
+    expect(layout).toEqual({ status: "layout" })
+    expect(selectTourVisible(layout)).toBe(true)
+    expect(selectTourStep(layout)).toBeUndefined()
+    expect(selectTourProgress(layout)).toBeUndefined()
+    expect(run(layout, { type: "next" }).state).toEqual({ status: "step", index: 0 })
+  })
+
+  test("skipping from the welcome, the layout question or any step still asks where work should live", () => {
     expect(run({ status: "welcome" }, { type: "skip" }).state).toEqual({ status: "folder" })
+    expect(run({ status: "layout" }, { type: "skip" }).state).toEqual({ status: "folder" })
 
     const mid = run({ status: "welcome" }, { type: "start" }, { type: "next" }).state
 
     expect(run(mid, { type: "skip" }).state).toEqual({ status: "folder" })
   })
 
-  test("back steps through the tour and returns to the welcome from the first step", () => {
-    const last = run({ status: "welcome" }, { type: "start" }, { type: "next" }).state
+  test("back steps through the tour and returns to the welcome from the layout question", () => {
+    const first = run({ status: "welcome" }, { type: "start" }, { type: "next" }).state
 
-    expect(run(last, { type: "back" }).state).toEqual({ status: "step", index: 0 })
+    expect(run(first, { type: "back" }).state).toEqual({ status: "layout" })
 
-    const first = run(last, { type: "back" }).state
+    const layout = run(first, { type: "back" }).state
 
-    expect(run(first, { type: "back" }).state).toEqual({ status: "welcome" })
+    expect(run(layout, { type: "back" }).state).toEqual({ status: "welcome" })
     expect(run({ status: "folder" }, { type: "back" }).state).toEqual({
       status: "step",
       index: TOUR_STEPS.length - 1,
@@ -71,7 +84,7 @@ describe("onboarding tour", () => {
   })
 
   test("the current step and its one-based progress follow the index", () => {
-    const state = run({ status: "welcome" }, { type: "start" }).state
+    const state = run({ status: "welcome" }, { type: "start" }, { type: "next" }).state
 
     expect(selectTourStep(state)).toBe("composer")
     expect(selectTourProgress(state)).toEqual({ index: 1, total: TOUR_STEPS.length })
@@ -84,13 +97,7 @@ describe("onboarding tour", () => {
   })
 
   test("completion is not persisted by any earlier stage", () => {
-    const walked = run(
-      { status: "welcome" },
-      { type: "start" },
-      { type: "next" },
-      { type: "back" },
-      { type: "skip" },
-    )
+    const walked = run({ status: "welcome" }, { type: "start" }, { type: "next" }, { type: "back" }, { type: "skip" })
 
     expect(walked.effects).toEqual([])
   })

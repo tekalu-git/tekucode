@@ -1,5 +1,6 @@
 import { Component, Show, createMemo } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
+import { Button } from "@opencode/ui/button"
 import { Select } from "@opencode/ui/select"
 import { Switch } from "@opencode/ui/switch"
 import { TimelineDetailControl } from "@/settings/timeline-detail"
@@ -287,6 +288,19 @@ export const SettingsGeneral: Component = () => {
             <div data-action="settings-spellcheck">
               <Switch checked={spellcheck.value()} onChange={spellcheck.select} />
             </div>
+          </SettingsRow>
+          <SettingsRow
+            title={language.t("settings.general.row.showWelcomeTour.title")}
+            description={language.t("settings.general.row.showWelcomeTour.description")}
+          >
+            <Button
+              data-action="settings-show-welcome-tour"
+              variant="outline"
+              size="small"
+              onClick={() => platform.replayOnboardingTour?.()}
+            >
+              {language.t("settings.general.row.showWelcomeTour.action")}
+            </Button>
           </SettingsRow>
         </Show>
 
