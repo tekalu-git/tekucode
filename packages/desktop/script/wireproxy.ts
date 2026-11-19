@@ -58,14 +58,14 @@ export async function ensureWireproxy() {
   const directory = await mkdtemp(join(tmpdir(), "wireproxy-"))
 
   try {
-    const archive = join(directory, "wireproxy.tar.gz")
     const response = await fetch(`${RELEASE}/${binary.asset}`)
 
     if (!response.ok) throw new Error(`Downloading ${binary.asset} failed: ${response.status} ${response.statusText}`)
 
-    await Bun.write(archive, response)
+    await Bun.write(join(directory, "wireproxy.tar.gz"), response)
 
-    const extract = Bun.spawnSync(["tar", "-xzf", archive, "-C", directory])
+    // Extract from inside the temp directory: a Windows path such as C:\... reads as host:path to GNU tar.
+    const extract = Bun.spawnSync(["tar", "-xzf", "wireproxy.tar.gz"], { cwd: directory })
 
     if (extract.exitCode !== 0) throw new Error(`Extracting ${binary.asset} failed: ${extract.stderr.toString()}`)
 
